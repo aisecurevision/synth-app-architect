@@ -22,7 +22,13 @@ const Index = () => {
       setFileName(response.fileName || "app.html");
     } catch (error) {
       console.error("Error generating code:", error);
-      toast.error("Failed to generate code. Please try again.");
+      
+      // Show a more specific error message for CORS issues
+      if (error instanceof TypeError && error.message.includes('NetworkError')) {
+        toast.error("CORS error: Cannot connect to the LLM API. Please ensure your LM Studio is running and configured to allow CORS.");
+      } else {
+        toast.error("Failed to generate code. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
