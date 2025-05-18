@@ -9,7 +9,7 @@ interface GenerateCodeResponse {
   fileName?: string;
 }
 
-const API_URL = 'http://192.168.1.42:1234/v1/chat/completions';
+const API_URL = 'http://127.0.0.1:1234/v1/chat/completions';
 
 export const generateCode = async (params: GenerateCodeParams): Promise<GenerateCodeResponse> => {
   try {
@@ -17,13 +17,9 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': window.location.origin,
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'Content-Type',
       },
-      mode: 'cors', // Explicitly set CORS mode
       body: JSON.stringify({
-        model: "local-model",
+        model: "mistral-7b-instruct-v0.3", // Update to match the model in your curl command
         messages: [
           {
             role: "system",
@@ -40,6 +36,8 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API error: ${response.status}`, errorText);
       throw new Error(`API error: ${response.status}`);
     }
 
