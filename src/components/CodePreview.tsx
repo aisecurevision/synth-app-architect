@@ -27,110 +27,7 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
           
           if (iframeDoc) {
             iframeDoc.open();
-            
-            // Determine how to render based on language
-            if (language === "html") {
-              // For HTML, just write the code directly
-              iframeDoc.write(code);
-            } else if (language === "react-node" || language === "react") {
-              // For React code, create a preview with Babel standalone
-              iframeDoc.write(`
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                  <meta charset="UTF-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>React App Preview</title>
-                  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-                  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-                  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-                  <style>
-                    body {
-                      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                      line-height: 1.6;
-                      color: #333;
-                      margin: 0;
-                      padding: 0;
-                    }
-                    .container {
-                      width: 100%;
-                      max-width: 1200px;
-                      margin: 0 auto;
-                      padding: 2rem;
-                    }
-                    .app-preview {
-                      padding: 20px;
-                      background: #f5f5f5;
-                      border-radius: 8px;
-                    }
-                    .app-preview h1 {
-                      margin-top: 0;
-                    }
-                    .app-info {
-                      background: #e9f7fe;
-                      padding: 15px;
-                      border-radius: 6px;
-                      margin-bottom: 20px;
-                      border-left: 4px solid #3b82f6;
-                    }
-                  </style>
-                </head>
-                <body>
-                  <div class="container">
-                    <div class="app-info">
-                      <h2>React Application Preview</h2>
-                      <p>This is a simplified preview. In a full environment, this would be a complete React application.</p>
-                    </div>
-                    <div class="app-preview">
-                      <div id="root"></div>
-                    </div>
-                  </div>
-                  <script type="text/babel">
-                    // Extract React component code
-                    ${code}
-                    
-                    // Try to find and render a component
-                    try {
-                      // Look for exported components or functions that might be components
-                      const componentNames = Object.keys(window).filter(key => 
-                        typeof window[key] === 'function' && 
-                        /^[A-Z]/.test(key) &&
-                        !['React', 'ReactDOM'].includes(key)
-                      );
-                      
-                      if (componentNames.length > 0) {
-                        // Use the first component found
-                        const ComponentToRender = window[componentNames[0]];
-                        ReactDOM.createRoot(document.getElementById('root')).render(<ComponentToRender />);
-                      } else {
-                        // Fallback message
-                        ReactDOM.createRoot(document.getElementById('root')).render(
-                          <div>
-                            <h1>React Application</h1>
-                            <p>This is a preview of your React application.</p>
-                            <p>See the code view for the full source code.</p>
-                          </div>
-                        );
-                      }
-                    } catch (error) {
-                      // Handle errors gracefully
-                      ReactDOM.createRoot(document.getElementById('root')).render(
-                        <div>
-                          <h1>Preview Error</h1>
-                          <p>There was an error rendering the preview:</p>
-                          <pre style={{ background: '#fff3f3', padding: '10px', borderRadius: '4px' }}>
-                            {error.message}
-                          </pre>
-                          <p>See the code view for the full source.</p>
-                        </div>
-                      );
-                    }
-                  </script>
-                </body>
-                </html>
-              `);
-            }
-            
+            iframeDoc.write(code);
             iframeDoc.close();
             setIsRendering(false);
           }
@@ -141,7 +38,7 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
     } else {
       setIsRendering(true);
     }
-  }, [code, isLoading, viewMode, language]);
+  }, [code, isLoading, viewMode]);
 
   const handleDownload = () => {
     try {
@@ -168,9 +65,7 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
           <div className="h-3 w-3 rounded-full bg-red-500 opacity-75 mr-2"></div>
           <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-75 mr-2"></div>
           <div className="h-3 w-3 rounded-full bg-green-500 opacity-75 mr-2"></div>
-          <span className="text-xs text-ai-grayText ml-2">
-            {language === "react-node" ? "React + Node.js" : language.charAt(0).toUpperCase() + language.slice(1)}
-          </span>
+          <span className="text-xs text-ai-grayText ml-2">Preview</span>
         </div>
         <div className="flex gap-2">
           <div className="bg-ai-darkBg rounded-md overflow-hidden flex">
