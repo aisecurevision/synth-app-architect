@@ -10,24 +10,34 @@ const Index = () => {
   const [generatedCode, setGeneratedCode] = useState("");
   const [codeLanguage, setCodeLanguage] = useState("html");
   const [isLoading, setIsLoading] = useState(false);
-  const [fileName, setFileName] = useState("app.html");
+  const [fileName, setFileName] = useState("website.html");
 
   const handleChatSubmit = async (message: string) => {
     setIsLoading(true);
 
     try {
-      const response = await generateCode({ prompt: message });
+      // Add a template hint to help guide the LLM
+      const enhancedPrompt = `${message}\n\nPlease create a responsive, modern website with clean design.`;
+      
+      const response = await generateCode({ prompt: enhancedPrompt });
       setGeneratedCode(response.code);
       setCodeLanguage(response.language || "html");
-      setFileName(response.fileName || "app.html");
+      setFileName(response.fileName || "website.html");
+      
+      // Notify the user about successful generation
+      toast.success("Website generated successfully! Check the preview.");
     } catch (error) {
       console.error("Error generating code:", error);
       
-      // Show a more specific error message for CORS issues
+      // Show more specific error messages
       if (error instanceof TypeError && error.message.includes('NetworkError')) {
         toast.error("CORS error: Cannot connect to the LLM API. Please ensure your LM Studio is running and configured to allow CORS.");
+      } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        toast.error("Connection failed: Is the LLM server running at http://127.0.0.1:1234?");
+      } else if (error instanceof Error && error.message.includes('API error: 400')) {
+        toast.error("API error: Bad request format. Check the console for details.");
       } else {
-        toast.error("Failed to generate code. Please try again.");
+        toast.error("Failed to generate website. Please try a different prompt.");
       }
     } finally {
       setIsLoading(false);
