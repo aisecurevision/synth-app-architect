@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Code, Eye } from "lucide-react";
 import LoadingIndicator from "./LoadingIndicator";
 import { toast } from "@/components/ui/sonner";
 
@@ -15,9 +15,10 @@ interface CodePreviewProps {
 const CodePreview = ({ code, language, fileName = "generated-app.html", isLoading = false }: CodePreviewProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isRendering, setIsRendering] = useState(true);
+  const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
 
   useEffect(() => {
-    if (code && !isLoading) {
+    if (code && !isLoading && viewMode === "preview") {
       // Small delay to simulate rendering
       const timer = setTimeout(() => {
         if (iframeRef.current) {
@@ -37,7 +38,7 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
     } else {
       setIsRendering(true);
     }
-  }, [code, isLoading]);
+  }, [code, isLoading, viewMode]);
 
   const handleDownload = () => {
     try {
@@ -66,20 +67,42 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
           <div className="h-3 w-3 rounded-full bg-green-500 opacity-75 mr-2"></div>
           <span className="text-xs text-ai-grayText ml-2">Preview</span>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="bg-transparent border-white/10 hover:bg-white/5"
-          onClick={handleDownload}
-          disabled={!code || isLoading}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Download
-        </Button>
+        <div className="flex gap-2">
+          <div className="bg-ai-darkBg rounded-md overflow-hidden flex">
+            <Button 
+              variant={viewMode === "preview" ? "default" : "outline"}
+              size="sm" 
+              className={`rounded-r-none ${viewMode === "preview" ? "" : "bg-transparent border-white/10 hover:bg-white/5"}`}
+              onClick={() => setViewMode("preview")}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Preview
+            </Button>
+            <Button 
+              variant={viewMode === "code" ? "default" : "outline"}
+              size="sm" 
+              className={`rounded-l-none ${viewMode === "code" ? "" : "bg-transparent border-white/10 hover:bg-white/5"}`}
+              onClick={() => setViewMode("code")}
+            >
+              <Code className="h-4 w-4 mr-2" />
+              Code
+            </Button>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-transparent border-white/10 hover:bg-white/5"
+            onClick={handleDownload}
+            disabled={!code || isLoading}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 relative bg-white rounded-b-lg overflow-hidden">
-        {(isLoading || isRendering) && (
+        {(isLoading || (isRendering && viewMode === "preview")) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-ai-darkBg bg-opacity-90 z-10">
             <LoadingIndicator className="mb-4" />
             <p className="text-sm text-ai-grayText">
@@ -87,12 +110,21 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
             </p>
           </div>
         )}
-        <iframe 
-          ref={iframeRef}
-          className="w-full h-full border-none"
-          sandbox="allow-scripts allow-same-origin allow-forms"
-          title="Code Preview"
-        />
+        
+        {viewMode === "preview" ? (
+          <iframe 
+            ref={iframeRef}
+            className="w-full h-full border-none"
+            sandbox="allow-scripts allow-same-origin allow-forms"
+            title="Code Preview"
+          />
+        ) : (
+          <div className="w-full h-full overflow-auto bg-ai-darkBg text-white p-4">
+            <pre className="text-sm">
+              <code>{code}</code>
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );
