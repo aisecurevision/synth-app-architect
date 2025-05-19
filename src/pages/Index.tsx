@@ -19,10 +19,11 @@ const Index = () => {
       // Add a template hint to help guide the LLM
       const enhancedPrompt = `${message}\n\nPlease create a modern React application with TypeScript, Tailwind CSS, and a clean design.`;
       
+      console.log("Submitting request to generate code...");
       const response = await generateCode({ prompt: enhancedPrompt });
       setGeneratedCode(response.code);
       setCodeLanguage(response.language || "tsx");
-      setFileName("App.tsx"); // Always use App.tsx to avoid the three dots issue
+      setFileName("App.tsx"); // Always use App.tsx 
       
       // Notify the user about successful generation
       toast.success("Application generated successfully! Check the preview.");
@@ -36,7 +37,9 @@ const Index = () => {
         } else if (error.message.includes('API error: 400')) {
           toast.error("API error: Bad request format. Check the console for details.");
         } else if (error.message.includes('No models available')) {
-          toast.error("No models available from LM Studio. Please ensure at least one model is loaded.");
+          toast.error("No models available from LM Studio. Please ensure you have the Qwen2.5-coder-7b-instruct model loaded.");
+        } else if (error.message.includes('Generated application code is invalid')) {
+          toast.error("The model generated incomplete code. Try a more specific prompt or check if Qwen2.5-coder-7b-instruct is properly loaded.");
         } else {
           toast.error(`Error: ${error.message}`);
         }

@@ -30,8 +30,7 @@ const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }
             (iframeRef.current.contentWindow?.document);
           
           if (iframeDoc) {
-            // For React applications, we need to create a proper HTML structure
-            // that includes required scripts and root element
+            // For React applications, create a proper HTML structure
             const isReactApp = language === 'jsx' || language === 'tsx';
             
             let htmlContent = code;
@@ -124,14 +123,43 @@ const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }
       const rootElement = document.getElementById('root');
       const root = ReactDOM.createRoot(rootElement);
       
-      // Check if App is exported as default or named export
-      const AppComponent = typeof App !== 'undefined' ? App : (typeof default_App !== 'undefined' ? default_App : null);
+      // Try multiple ways to find the main component
+      const AppComponent = typeof App !== 'undefined' ? App : 
+                          (typeof default_App !== 'undefined' ? default_App : 
+                          (typeof Main !== 'undefined' ? Main :
+                          (typeof DefaultApp !== 'undefined' ? DefaultApp :
+                          (typeof Root !== 'undefined' ? Root : null))));
       
       if (AppComponent) {
-        root.render(React.createElement(AppComponent));
+        console.log("Rendering App component");
+        try {
+          root.render(React.createElement(AppComponent));
+        } catch (e) {
+          console.error("Error rendering App:", e);
+          rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error rendering the component: ' + e.message + '</div>';
+        }
       } else {
-        rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: No App component found in the generated code.</div>';
-        console.error('No App component found in the generated code');
+        console.log("No App component found, looking for default export");
+        // Try to find and execute a default export function
+        try {
+          // Look for default export patterns
+          let match = ${code}.match(/export default (\w+)/);
+          if (match && match[1]) {
+            const ComponentName = match[1];
+            const ExportedComponent = eval(ComponentName);
+            if (typeof ExportedComponent === 'function') {
+              root.render(React.createElement(ExportedComponent));
+              console.log("Rendered component:", ComponentName);
+            } else {
+              rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: Component found but is not a function</div>';
+            }
+          } else {
+            rootElement.innerHTML = '<div style="color: orange; padding: 20px;">Warning: No App component or default export found. Showing the raw output:</div><div style="padding: 20px;">' + rootElement.innerHTML + '</div>';
+          }
+        } catch (e) {
+          console.error("Error finding or rendering component:", e);
+          rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: ' + e.message + '</div>';
+        }
       }
     </script>
 </body>
