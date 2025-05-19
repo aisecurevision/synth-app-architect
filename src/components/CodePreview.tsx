@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Code, Eye } from "lucide-react";
+import { Download, Code, Eye, Copy, Check } from "lucide-react";
 import LoadingIndicator from "./LoadingIndicator";
 import { toast } from "@/components/ui/sonner";
 
@@ -12,10 +12,11 @@ interface CodePreviewProps {
   isLoading?: boolean;
 }
 
-const CodePreview = ({ code, language, fileName = "generated-app.html", isLoading = false }: CodePreviewProps) => {
+const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }: CodePreviewProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isRendering, setIsRendering] = useState(true);
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (code && !isLoading && viewMode === "preview") {
@@ -26,8 +27,98 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
             (iframeRef.current.contentWindow?.document);
           
           if (iframeDoc) {
+            // For React applications, we need to create a proper HTML structure
+            // that includes required scripts and root element
+            const isReactApp = language === 'jsx' || language === 'tsx';
+            
+            let htmlContent = code;
+
+            // If it's a React app but the code doesn't include full HTML structure
+            if (isReactApp && !code.includes('<!DOCTYPE html>')) {
+              htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React App Preview</title>
+    <!-- React dependencies -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#9b87f5',
+              secondary: '#7E69AB',
+            }
+          }
+        },
+        plugins: [
+          // DaisyUI-like utility classes
+          function({ addComponents }) {
+            addComponents({
+              '.card': {
+                backgroundColor: '#ffffff',
+                borderRadius: '0.5rem',
+                padding: '1.5rem',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+              },
+              '.btn': {
+                padding: '0.5rem 1rem',
+                borderRadius: '0.25rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+              '.btn-primary': {
+                backgroundColor: '#9b87f5',
+                color: '#ffffff',
+                '&:hover': {
+                  backgroundColor: '#7E69AB',
+                },
+              },
+            })
+          }
+        ]
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        line-height: 1.6;
+        color: #333;
+        margin: 0;
+        padding: 0;
+      }
+      #root {
+        width: 100%;
+      }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <!-- React component script -->
+    <script type="text/babel">
+      ${code}
+      
+      // Render the App component to the root element
+      const rootElement = document.getElementById('root');
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(<App />);
+    </script>
+</body>
+</html>`;
+            }
+
             iframeDoc.open();
-            iframeDoc.write(code);
+            iframeDoc.write(htmlContent);
             iframeDoc.close();
             setIsRendering(false);
           }
@@ -38,7 +129,7 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
     } else {
       setIsRendering(true);
     }
-  }, [code, isLoading, viewMode]);
+  }, [code, isLoading, viewMode, language]);
 
   const handleDownload = () => {
     try {
@@ -58,6 +149,19 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
     }
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast.success("Code copied to clipboard!");
+      })
+      .catch(err => {
+        console.error("Failed to copy code:", err);
+        toast.error("Failed to copy code.");
+      });
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between bg-ai-darkPanel p-3 rounded-t-lg border-b border-border">
@@ -65,7 +169,7 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
           <div className="h-3 w-3 rounded-full bg-red-500 opacity-75 mr-2"></div>
           <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-75 mr-2"></div>
           <div className="h-3 w-3 rounded-full bg-green-500 opacity-75 mr-2"></div>
-          <span className="text-xs text-ai-grayText ml-2">Preview</span>
+          <span className="text-xs text-ai-grayText ml-2">{fileName}</span>
         </div>
         <div className="flex gap-2">
           <div className="bg-ai-darkBg rounded-md overflow-hidden flex">
@@ -88,6 +192,16 @@ const CodePreview = ({ code, language, fileName = "generated-app.html", isLoadin
               Code
             </Button>
           </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-transparent border-white/10 hover:bg-white/5"
+            onClick={handleCopy}
+            disabled={!code || isLoading}
+          >
+            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
           <Button 
             variant="outline" 
             size="sm" 

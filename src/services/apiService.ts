@@ -9,29 +9,96 @@ interface GenerateCodeResponse {
   fileName?: string;
 }
 
+// Available templates that will be selected based on prompt context
+const TEMPLATES = {
+  default: "modern-dashboard",
+  dashboard: "analytics-dashboard",
+  ecommerce: "ecommerce-dashboard",
+  portfolio: "portfolio-site"
+};
+
 const API_URL = 'http://127.0.0.1:1234/v1/chat/completions';
+
+// Function to determine the best template based on user prompt
+const determineTemplate = (prompt: string): string => {
+  prompt = prompt.toLowerCase();
+  
+  if (prompt.includes('ecommerce') || prompt.includes('shop') || prompt.includes('store')) {
+    return TEMPLATES.ecommerce;
+  } else if (prompt.includes('dashboard') || prompt.includes('analytics') || prompt.includes('admin')) {
+    return TEMPLATES.dashboard;
+  } else if (prompt.includes('portfolio') || prompt.includes('personal') || prompt.includes('resume')) {
+    return TEMPLATES.portfolio;
+  }
+  
+  return TEMPLATES.default;
+};
+
+// Fetch available models from LM Studio
+const fetchAvailableModel = async (): Promise<string> => {
+  try {
+    const response = await fetch(`${API_URL.replace('/chat/completions', '/models')}`);
+    if (!response.ok) {
+      console.warn("Could not fetch available models, using fallback model");
+      return "mistral-7b-instruct-v0.3";
+    }
+    
+    const data = await response.json();
+    // Get the first available model (or use fallback)
+    const model = data.data?.[0]?.id || "mistral-7b-instruct-v0.3";
+    console.log("Detected model:", model);
+    return model;
+  } catch (error) {
+    console.error("Error fetching models:", error);
+    return "mistral-7b-instruct-v0.3"; // Fallback
+  }
+};
 
 export const generateCode = async (params: GenerateCodeParams): Promise<GenerateCodeResponse> => {
   try {
+    // Determine the best template based on user prompt
+    const template = determineTemplate(params.prompt);
+    console.log(`Selected template: ${template} based on prompt`);
+    
+    // Get available model
+    const model = await fetchAvailableModel();
+    
     const response = await fetch(`${API_URL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "mistral-7b-instruct-v0.3",
+        model: model,
         messages: [
           {
-            role: "user", // Changed from system to user as you mentioned
-            content: `Create a modern, responsive website based on this description: "${params.prompt}". 
-            Return ONLY valid HTML, CSS, and JavaScript code in a single HTML file. 
-            Make sure the website looks professional, with a clean layout, modern design elements, and responsive behavior.
-            Structure your response as a JSON object with 'code', 'language', and 'fileName' properties.
+            role: "user",
+            content: `Create a modern, production-grade ${template} web application based on this description: "${params.prompt}".
+
+            Tech Stack Requirements:
+            - Frontend: React (Vite) with TypeScript
+            - Styling: Tailwind CSS with ShadCN UI components and DaisyUI for theming
+            - Routing: React Router DOM v6+
+            
+            The application should include:
+            - Modern, responsive layout with sidebar navigation
+            - Dashboard cards/grids (if applicable)
+            - Data visualization components (if applicable)
+            - Dark/light mode toggle
+            - Proper TypeScript interfaces and types
+            - Well-organized folder structure (src/components, src/hooks, src/pages)
+            
+            Return your response as a JSON object with these properties:
+            1. "code": Complete React+TypeScript+Vite application code
+            2. "language": "jsx" or "tsx"
+            3. "fileName": "App.tsx"
+            
+            Make the application as complete and functional as possible, with realistic dummy data if needed.
             Do not include any explanations, just the JSON object.`
           }
         ],
         temperature: 0.7,
-        max_tokens: 4000
+        max_tokens: 8000
       }),
     });
 
@@ -59,23 +126,25 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
         try {
           parsedContent = JSON.parse(jsonMatch[1] || jsonMatch[0]);
         } catch (e) {
-          // If we still can't parse, extract HTML directly
-          const htmlMatch = messageContent.match(/```html\n([\s\S]*?)\n```/) ||
-                           messageContent.match(/<!DOCTYPE html>[\s\S]*/);
+          // If we still can't parse JSON, extract React code directly
+          const reactMatch = messageContent.match(/```tsx\n([\s\S]*?)\n```/) ||
+                            messageContent.match(/```jsx\n([\s\S]*?)\n```/) ||
+                            messageContent.match(/```javascript\n([\s\S]*?)\n```/) ||
+                            messageContent.match(/import React from ['"]react['"];[\s\S]*/);
           
-          if (htmlMatch) {
-            // If we find HTML, use it directly
+          if (reactMatch) {
+            // If we find React code, use it directly
             parsedContent = {
-              code: htmlMatch[0] || htmlMatch[1] || messageContent,
-              language: 'html',
-              fileName: 'website.html'
+              code: reactMatch[1] || reactMatch[0],
+              language: 'tsx',
+              fileName: 'App.tsx'
             };
           } else {
-            // Fallback if no HTML structure found
+            // Fallback if no React structure found
             parsedContent = {
               code: messageContent,
-              language: 'html',
-              fileName: 'website.html'
+              language: 'tsx',
+              fileName: 'App.tsx'
             };
           }
         }
@@ -83,49 +152,31 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
         // Fallback if no JSON structure found
         parsedContent = {
           code: messageContent,
-          language: 'html',
-          fileName: 'website.html'
+          language: 'tsx',
+          fileName: 'App.tsx'
         };
       }
     }
     
-    // Ensure the code has HTML structure if it's HTML
-    if (parsedContent.language === 'html' && !parsedContent.code.includes('<!DOCTYPE html>')) {
-      parsedContent.code = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synth Generated Website</title>
-    <style>
-        /* Modern defaults */
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        ${parsedContent.code}
-    </div>
-</body>
-</html>`;
+    // Set appropriate language based on content
+    if (parsedContent.code.includes('TypeScript') || 
+        parsedContent.code.includes('typescript') ||
+        parsedContent.code.includes('<React.FC') ||
+        parsedContent.code.includes(': React.') ||
+        parsedContent.code.includes(': FC<') ||
+        parsedContent.code.includes('interface ')) {
+      parsedContent.language = 'tsx';
+    } else if (parsedContent.code.includes('import React') || 
+              parsedContent.code.includes('React.') ||
+              parsedContent.code.includes('useState') ||
+              parsedContent.code.includes('useEffect')) {
+      parsedContent.language = 'jsx';
     }
     
     return {
       code: parsedContent.code || messageContent,
-      language: parsedContent.language || 'html',
-      fileName: parsedContent.fileName || 'website.html'
+      language: parsedContent.language || 'tsx',
+      fileName: parsedContent.fileName || 'App.tsx'
     };
   } catch (error) {
     console.error('Error generating code:', error);

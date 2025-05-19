@@ -8,24 +8,24 @@ import { generateCode } from "@/services/apiService";
 
 const Index = () => {
   const [generatedCode, setGeneratedCode] = useState("");
-  const [codeLanguage, setCodeLanguage] = useState("html");
+  const [codeLanguage, setCodeLanguage] = useState("tsx");
   const [isLoading, setIsLoading] = useState(false);
-  const [fileName, setFileName] = useState("website.html");
+  const [fileName, setFileName] = useState("App.tsx");
 
   const handleChatSubmit = async (message: string) => {
     setIsLoading(true);
 
     try {
       // Add a template hint to help guide the LLM
-      const enhancedPrompt = `${message}\n\nPlease create a responsive, modern website with clean design.`;
+      const enhancedPrompt = `${message}\n\nPlease create a modern React application with TypeScript, Tailwind CSS, and a clean design.`;
       
       const response = await generateCode({ prompt: enhancedPrompt });
       setGeneratedCode(response.code);
-      setCodeLanguage(response.language || "html");
-      setFileName(response.fileName || "website.html");
+      setCodeLanguage(response.language || "tsx");
+      setFileName(response.fileName || "App.tsx");
       
       // Notify the user about successful generation
-      toast.success("Website generated successfully! Check the preview.");
+      toast.success("Application generated successfully! Check the preview.");
     } catch (error) {
       console.error("Error generating code:", error);
       
@@ -37,7 +37,7 @@ const Index = () => {
       } else if (error instanceof Error && error.message.includes('API error: 400')) {
         toast.error("API error: Bad request format. Check the console for details.");
       } else {
-        toast.error("Failed to generate website. Please try a different prompt.");
+        toast.error("Failed to generate application. Please try a different prompt.");
       }
     } finally {
       setIsLoading(false);
