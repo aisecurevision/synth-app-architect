@@ -1,9 +1,9 @@
 
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Download, Code, Eye, Copy, Check } from "lucide-react";
-import LoadingIndicator from "./LoadingIndicator";
-import { toast } from "@/components/ui/sonner";
+import { useState } from "react";
+import PreviewHeader from "./preview/PreviewHeader";
+import CodeFrame from "./preview/CodeFrame";
+import CodeDisplay from "./preview/CodeDisplay";
+import LoadingOverlay from "./preview/LoadingOverlay";
 
 interface CodePreviewProps {
   code: string;
@@ -12,281 +12,37 @@ interface CodePreviewProps {
   isLoading?: boolean;
 }
 
-const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }: CodePreviewProps) => {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [isRendering, setIsRendering] = useState(true);
+const CodePreview = ({ 
+  code, 
+  language, 
+  fileName = "App.tsx", 
+  isLoading = false 
+}: CodePreviewProps) => {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (code && !isLoading && viewMode === "preview") {
-      // Reset rendering state when code changes
-      setIsRendering(true);
-      
-      // Small delay to simulate rendering
-      const timer = setTimeout(() => {
-        if (iframeRef.current) {
-          const iframeDoc = iframeRef.current.contentDocument || 
-            (iframeRef.current.contentWindow?.document);
-          
-          if (iframeDoc) {
-            // For React applications, create a proper HTML structure
-            const isReactApp = language === 'jsx' || language === 'tsx';
-            
-            let htmlContent = code;
-
-            // If it's a React app but the code doesn't include full HTML structure
-            if (isReactApp && !code.includes('<!DOCTYPE html>')) {
-              htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React App Preview</title>
-    <!-- React dependencies -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- TailwindCSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              primary: '#9b87f5',
-              secondary: '#7E69AB',
-              background: '#f8fafc',
-              foreground: '#1f2937',
-              muted: '#f1f5f9',
-              'muted-foreground': '#64748b',
-              border: '#e2e8f0',
-              input: '#e2e8f0',
-              card: '#ffffff',
-              'card-foreground': '#1f2937',
-            }
-          }
-        },
-        plugins: [
-          // DaisyUI-like utility classes
-          function({ addComponents }) {
-            addComponents({
-              '.card': {
-                backgroundColor: '#ffffff',
-                borderRadius: '0.5rem',
-                padding: '1.5rem',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              },
-              '.btn': {
-                padding: '0.5rem 1rem',
-                borderRadius: '0.25rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-              '.btn-primary': {
-                backgroundColor: '#9b87f5',
-                color: '#ffffff',
-                '&:hover': {
-                  backgroundColor: '#7E69AB',
-                },
-              },
-            })
-          }
-        ]
-      }
-    </script>
-    <style>
-      body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        line-height: 1.6;
-        color: #333;
-        margin: 0;
-        padding: 0;
-      }
-      #root {
-        width: 100%;
-      }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    <!-- React component script -->
-    <script type="text/babel">
-      ${code}
-      
-      // Render the App component to the root element
-      const rootElement = document.getElementById('root');
-      const root = ReactDOM.createRoot(rootElement);
-      
-      // Try multiple ways to find the main component
-      const AppComponent = typeof App !== 'undefined' ? App : 
-                          (typeof default_App !== 'undefined' ? default_App : 
-                          (typeof Main !== 'undefined' ? Main :
-                          (typeof DefaultApp !== 'undefined' ? DefaultApp :
-                          (typeof Root !== 'undefined' ? Root : null))));
-      
-      if (AppComponent) {
-        console.log("Rendering App component");
-        try {
-          root.render(React.createElement(AppComponent));
-        } catch (e) {
-          console.error("Error rendering App:", e);
-          rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error rendering the component: ' + e.message + '</div>';
-        }
-      } else {
-        console.log("No App component found, looking for default export");
-        // Try to find and execute a default export function
-        try {
-          // Look for default export patterns
-          let match = ${code}.match(/export default (\w+)/);
-          if (match && match[1]) {
-            const ComponentName = match[1];
-            const ExportedComponent = eval(ComponentName);
-            if (typeof ExportedComponent === 'function') {
-              root.render(React.createElement(ExportedComponent));
-              console.log("Rendered component:", ComponentName);
-            } else {
-              rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: Component found but is not a function</div>';
-            }
-          } else {
-            rootElement.innerHTML = '<div style="color: orange; padding: 20px;">Warning: No App component or default export found. Showing the raw output:</div><div style="padding: 20px;">' + rootElement.innerHTML + '</div>';
-          }
-        } catch (e) {
-          console.error("Error finding or rendering component:", e);
-          rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: ' + e.message + '</div>';
-        }
-      }
-    </script>
-</body>
-</html>`;
-            }
-
-            iframeDoc.open();
-            iframeDoc.write(htmlContent);
-            iframeDoc.close();
-            setIsRendering(false);
-          }
-        }
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    } else if (viewMode === "code") {
-      setIsRendering(false);
-    }
-  }, [code, isLoading, viewMode, language]);
-
-  const handleDownload = () => {
-    try {
-      const blob = new Blob([code], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success("Code downloaded successfully!");
-    } catch (error) {
-      console.error("Failed to download code:", error);
-      toast.error("Failed to download code.");
-    }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-        toast.success("Code copied to clipboard!");
-      })
-      .catch(err => {
-        console.error("Failed to copy code:", err);
-        toast.error("Failed to copy code.");
-      });
-  };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between bg-ai-darkPanel p-3 rounded-t-lg border-b border-border">
-        <div className="flex items-center">
-          <div className="h-3 w-3 rounded-full bg-red-500 opacity-75 mr-2"></div>
-          <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-75 mr-2"></div>
-          <div className="h-3 w-3 rounded-full bg-green-500 opacity-75 mr-2"></div>
-          <span className="text-xs text-ai-grayText ml-2">{fileName}</span>
-        </div>
-        <div className="flex gap-2">
-          <div className="bg-ai-darkBg rounded-md overflow-hidden flex">
-            <Button 
-              variant={viewMode === "preview" ? "default" : "outline"}
-              size="sm" 
-              className={`rounded-r-none ${viewMode === "preview" ? "" : "bg-transparent border-white/10 hover:bg-white/5"}`}
-              onClick={() => setViewMode("preview")}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Preview
-            </Button>
-            <Button 
-              variant={viewMode === "code" ? "default" : "outline"}
-              size="sm" 
-              className={`rounded-l-none ${viewMode === "code" ? "" : "bg-transparent border-white/10 hover:bg-white/5"}`}
-              onClick={() => setViewMode("code")}
-            >
-              <Code className="h-4 w-4 mr-2" />
-              Code
-            </Button>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-transparent border-white/10 hover:bg-white/5"
-            onClick={handleCopy}
-            disabled={!code || isLoading}
-          >
-            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-            {copied ? "Copied" : "Copy"}
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-transparent border-white/10 hover:bg-white/5"
-            onClick={handleDownload}
-            disabled={!code || isLoading}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </Button>
-        </div>
-      </div>
+      <PreviewHeader 
+        fileName={fileName}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        code={code}
+        isLoading={isLoading}
+      />
 
       <div className="flex-1 relative bg-white rounded-b-lg overflow-hidden">
-        {(isLoading || (isRendering && viewMode === "preview")) && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-ai-darkBg bg-opacity-90 z-10">
-            <LoadingIndicator className="mb-4" />
-            <p className="text-sm text-ai-grayText">
-              {isLoading ? "Generating your application..." : "Rendering preview..."}
-            </p>
-          </div>
+        {isLoading && (
+          <LoadingOverlay message="Generating your application..." />
         )}
         
         {viewMode === "preview" ? (
-          <iframe 
-            ref={iframeRef}
-            className="w-full h-full border-none"
-            sandbox="allow-scripts allow-same-origin allow-forms"
-            title="Code Preview"
+          <CodeFrame 
+            code={code}
+            language={language}
+            isLoading={isLoading}
           />
         ) : (
-          <div className="w-full h-full overflow-auto bg-ai-darkBg text-white p-4">
-            <pre className="text-sm">
-              <code>{code}</code>
-            </pre>
-          </div>
+          <CodeDisplay code={code} />
         )}
       </div>
     </div>
