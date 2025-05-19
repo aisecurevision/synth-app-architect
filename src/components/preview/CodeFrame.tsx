@@ -11,11 +11,13 @@ interface CodeFrameProps {
 const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isRendering, setIsRendering] = useState(true);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   useEffect(() => {
     if (code && !isLoading) {
       // Reset rendering state when code changes
       setIsRendering(true);
+      setRenderError(null);
       
       // Small delay to simulate rendering
       const timer = setTimeout(() => {
@@ -24,14 +26,15 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
             (iframeRef.current.contentWindow?.document);
           
           if (iframeDoc) {
-            // For React applications, create a proper HTML structure
-            const isReactApp = language === 'jsx' || language === 'tsx';
-            
-            let htmlContent = code;
+            try {
+              // For React applications, create a proper HTML structure
+              const isReactApp = language === 'jsx' || language === 'tsx';
+              
+              let htmlContent = code;
 
-            // If it's a React app but the code doesn't include full HTML structure
-            if (isReactApp && !code.includes('<!DOCTYPE html>')) {
-              htmlContent = `<!DOCTYPE html>
+              // If it's a React app but the code doesn't include full HTML structure
+              if (isReactApp && !code.includes('<!DOCTYPE html>')) {
+                htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -104,11 +107,49 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
       }
       #root {
         width: 100%;
+        height: 100vh;
+      }
+      .component-error {
+        padding: 20px;
+        color: #e53e3e;
+        background-color: #fff5f5;
+        border: 1px solid #fed7d7;
+        border-radius: 0.375rem;
+        margin: 20px;
+      }
+      .component-warning {
+        padding: 20px;
+        color: #dd6b20;
+        background-color: #fffaf0;
+        border: 1px solid #feebc8;
+        border-radius: 0.375rem;
+        margin: 20px;
       }
     </style>
 </head>
 <body>
     <div id="root"></div>
+    <!-- Console logging -->
+    <script>
+      const originalConsoleLog = console.log;
+      const originalConsoleError = console.error;
+      const originalConsoleWarn = console.warn;
+      
+      console.log = (...args) => {
+        originalConsoleLog(...args);
+        window.parent.postMessage({ type: 'console-log', message: args.map(arg => String(arg)).join(' ') }, '*');
+      };
+      
+      console.error = (...args) => {
+        originalConsoleError(...args);
+        window.parent.postMessage({ type: 'console-error', message: args.map(arg => String(arg)).join(' ') }, '*');
+      };
+      
+      console.warn = (...args) => {
+        originalConsoleWarn(...args);
+        window.parent.postMessage({ type: 'console-warn', message: args.map(arg => String(arg)).join(' ') }, '*');
+      };
+    </script>
     <!-- React component script -->
     <script type="text/babel">
       ${code}
@@ -117,53 +158,126 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
       const rootElement = document.getElementById('root');
       const root = ReactDOM.createRoot(rootElement);
       
-      // Try multiple ways to find the main component
-      const AppComponent = typeof App !== 'undefined' ? App : 
-                          (typeof default_App !== 'undefined' ? default_App : 
-                          (typeof Main !== 'undefined' ? Main :
-                          (typeof DefaultApp !== 'undefined' ? DefaultApp :
-                          (typeof Root !== 'undefined' ? Root : null))));
-      
-      if (AppComponent) {
-        console.log("Rendering App component");
-        try {
-          root.render(React.createElement(AppComponent));
-        } catch (e) {
-          console.error("Error rendering App:", e);
-          rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error rendering the component: ' + e.message + '</div>';
-        }
-      } else {
-        console.log("No App component found, looking for default export");
-        // Try to find and execute a default export function
-        try {
-          // Look for default export patterns
-          let match = ${code}.match(/export default (\w+)/);
-          if (match && match[1]) {
-            const ComponentName = match[1];
-            const ExportedComponent = eval(ComponentName);
-            if (typeof ExportedComponent === 'function') {
-              root.render(React.createElement(ExportedComponent));
-              console.log("Rendered component:", ComponentName);
-            } else {
-              rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: Component found but is not a function</div>';
-            }
-          } else {
-            rootElement.innerHTML = '<div style="color: orange; padding: 20px;">Warning: No App component or default export found. Showing the raw output:</div><div style="padding: 20px;">' + rootElement.innerHTML + '</div>';
+      try {
+        // Multi-step approach to find the main component
+        
+        // Step 1: Try direct component references first
+        const possibleComponents = [
+          'App', 
+          'default_App', 
+          'Main', 
+          'DefaultApp', 
+          'Root',
+          'Dashboard',
+          'HomePage'
+        ];
+        
+        let AppComponent = null;
+        for (const name of possibleComponents) {
+          if (typeof window[name] === 'function') {
+            console.log("Found component:", name);
+            AppComponent = window[name];
+            break;
           }
-        } catch (e) {
-          console.error("Error finding or rendering component:", e);
-          rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: ' + e.message + '</div>';
+        }
+        
+        // Step 2: If no direct components, look for default exports
+        if (!AppComponent) {
+          console.log("No direct component found, looking for default exports");
+          
+          // Parse the code for export default statements
+          const exportMatch = /export\\s+default\\s+(\\w+)/.exec(${JSON.stringify(code)});
+          if (exportMatch && exportMatch[1]) {
+            const exportedName = exportMatch[1];
+            console.log("Found default export:", exportedName);
+            if (typeof window[exportedName] === 'function') {
+              AppComponent = window[exportedName];
+            }
+          }
+        }
+        
+        // Step 3: If all else fails, try to find any React components
+        if (!AppComponent) {
+          console.log("No default exports found, scanning for component functions");
+          
+          for (const key in window) {
+            if (typeof window[key] === 'function' && 
+                /^[A-Z]/.test(key) && 
+                window[key].toString().includes('React')) {
+              console.log("Found potential React component:", key);
+              AppComponent = window[key];
+              break;
+            }
+          }
+        }
+        
+        // Final rendering attempt
+        if (AppComponent) {
+          console.log("Rendering component");
+          root.render(React.createElement(AppComponent));
+        } else {
+          // Last resort: Create a simple component from the code
+          console.log("No components found, attempting to create one from the code");
+          
+          // Create a wrapper component that will hold our code
+          const DynamicComponent = () => {
+            return (
+              <div className="p-4">
+                <div className="mb-4 component-warning">
+                  <h2 className="text-lg font-bold mb-2">Preview Mode</h2>
+                  <p>Rendering direct React code without a component export</p>
+                </div>
+                <div className="bg-white shadow rounded p-4">
+                  {/* Insert simple UI elements based on code analysis */}
+                  <h1 className="text-2xl font-bold">Application Preview</h1>
+                  <p className="mt-2">This is a preview of your application. Use proper component exports for full functionality.</p>
+                  <div className="mt-4 p-4 bg-gray-100 rounded">
+                    <pre className="text-xs overflow-auto max-h-32">
+                      {${JSON.stringify(code)}.substring(0, 500) + "..."}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            );
+          };
+          
+          root.render(React.createElement(DynamicComponent));
+        }
+      } catch (e) {
+        console.error("Error rendering component:", e);
+        rootElement.innerHTML = '<div class="component-error"><h2>Error Rendering Component</h2><pre>' + e.message + '</pre><p>Check the browser console for more details.</p></div>';
+        
+        // Create a simple fallback UI
+        const ErrorComponent = () => (
+          <div className="p-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              <h2 className="font-bold">Error Rendering Component</h2>
+              <p className="mb-2">{e.message}</p>
+              <p className="text-sm">Check the browser console for more details.</p>
+            </div>
+          </div>
+        );
+        
+        try {
+          root.render(React.createElement(ErrorComponent));
+        } catch {
+          // Last resort if React rendering completely fails
         }
       }
     </script>
 </body>
 </html>`;
-            }
+              }
 
-            iframeDoc.open();
-            iframeDoc.write(htmlContent);
-            iframeDoc.close();
-            setIsRendering(false);
+              iframeDoc.open();
+              iframeDoc.write(htmlContent);
+              iframeDoc.close();
+              setIsRendering(false);
+            } catch (error) {
+              console.error("Error rendering iframe content:", error);
+              setRenderError(error instanceof Error ? error.message : "Unknown error rendering content");
+              setIsRendering(false);
+            }
           }
         }
       }, 500);
@@ -180,6 +294,16 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
           <p className="text-sm text-ai-grayText">Rendering preview...</p>
         </div>
       )}
+      
+      {renderError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ai-darkBg bg-opacity-90 z-10">
+          <div className="bg-red-900/50 p-4 rounded-md max-w-md">
+            <h3 className="text-red-300 font-medium mb-2">Error Rendering Preview</h3>
+            <p className="text-sm text-ai-grayText">{renderError}</p>
+          </div>
+        </div>
+      )}
+      
       <iframe 
         ref={iframeRef}
         className="w-full h-full border-none"

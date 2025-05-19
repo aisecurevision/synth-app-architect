@@ -9,30 +9,7 @@ interface GenerateCodeResponse {
   fileName?: string;
 }
 
-// Available templates that will be selected based on prompt context
-const TEMPLATES = {
-  default: "modern-dashboard",
-  dashboard: "analytics-dashboard",
-  ecommerce: "ecommerce-dashboard",
-  portfolio: "portfolio-site"
-};
-
 const API_URL = 'http://127.0.0.1:1234/v1/chat/completions';
-
-// Function to determine the best template based on user prompt
-const determineTemplate = (prompt: string): string => {
-  prompt = prompt.toLowerCase();
-  
-  if (prompt.includes('ecommerce') || prompt.includes('shop') || prompt.includes('store')) {
-    return TEMPLATES.ecommerce;
-  } else if (prompt.includes('dashboard') || prompt.includes('analytics') || prompt.includes('admin')) {
-    return TEMPLATES.dashboard;
-  } else if (prompt.includes('portfolio') || prompt.includes('personal') || prompt.includes('resume')) {
-    return TEMPLATES.portfolio;
-  }
-  
-  return TEMPLATES.default;
-};
 
 // Fetch available models from LM Studio with better error handling
 const fetchAvailableModel = async (): Promise<string> => {
@@ -63,20 +40,65 @@ const fetchAvailableModel = async (): Promise<string> => {
   }
 };
 
+// Enhanced JSON extraction with multiple fallback methods
+const extractJsonFromText = (text: string): any => {
+  console.log("Attempting to extract JSON from response text");
+  
+  try {
+    // Method 1: Try direct JSON parsing
+    return JSON.parse(text);
+  } catch (e) {
+    console.log("Direct JSON parsing failed, trying extraction methods");
+    
+    try {
+      // Method 2: Find content between ```json and ``` markers
+      const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch && jsonBlockMatch[1]) {
+        return JSON.parse(jsonBlockMatch[1]);
+      }
+      
+      // Method 3: Look for { ... } pattern that spans multiple lines
+      const jsonMatch = text.match(/{[\s\S]*}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      // Method 4: Extract code from a code block if JSON extraction failed
+      const codeBlockMatch = text.match(/```(?:tsx|jsx|javascript|react|ts)\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        return {
+          code: codeBlockMatch[1],
+          language: 'tsx',
+          fileName: 'App.tsx'
+        };
+      }
+      
+      // Method 5: Check if the entire response is React code
+      if (text.includes('import React') || text.includes('function App') || text.includes('const App')) {
+        return {
+          code: text,
+          language: text.includes('interface') || text.includes(': React.') ? 'tsx' : 'jsx',
+          fileName: 'App.tsx'
+        };
+      }
+
+      throw new Error("Could not extract valid JSON or code from the response");
+    } catch (extractionError) {
+      console.error("All JSON extraction methods failed:", extractionError);
+      throw new Error("Failed to parse API response: " + extractionError.message);
+    }
+  }
+};
+
 export const generateCode = async (params: GenerateCodeParams): Promise<GenerateCodeResponse> => {
   try {
-    // Determine the best template based on user prompt
-    const template = determineTemplate(params.prompt);
-    console.log(`Selected template: ${template} based on prompt`);
-    
-    // Get available model - but handle errors better
+    // Get available model but with better error handling if not available
     let model;
     try {
       model = await fetchAvailableModel();
-    } catch (error) {
-      console.error("Could not fetch model, attempting to use API without explicit model name");
-      // We'll let the API decide which model to use by not specifying one
-      model = ""; // This will be handled below
+    } catch (modelError) {
+      console.warn("Could not fetch model, will try without specifying model:", modelError);
+      // We'll proceed without a specific model
     }
     
     const requestBody: any = {
@@ -84,49 +106,48 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
         {
           role: "system",
           content: `You are an expert React developer specializing in creating modern, production-ready web applications.
-          You'll be generating complete code for a ${template} application based on the user's description.
-          IMPORTANT: Always return fully functional React code that has actual UI components, not just placeholder text.`
+          You'll be generating complete code for a responsive application based on the user's description.
+          IMPORTANT: Always return fully functional React code with actual UI components and content, not just placeholder text.
+          The code must render properly when evaluated in a browser environment.`
         },
         {
           role: "user",
-          content: `Create a modern, production-grade ${template} web application based on this description: "${params.prompt}".
+          content: `Create a modern, production-grade web application based on this description: "${params.prompt}".
 
           Tech Stack Requirements:
-          - Frontend: React (Vite) with TypeScript
-          - Styling: Tailwind CSS with ShadCN UI components and DaisyUI for theming
-          - Routing: React Router DOM v6+
+          - Frontend: React with TypeScript
+          - Styling: Tailwind CSS
           
           The application should include:
-          - Modern, responsive layout with sidebar navigation
-          - Dashboard cards/grids (if applicable)
-          - Data visualization components (if applicable)
-          - Dark/light mode toggle
-          - Proper TypeScript interfaces and types
-          - Well-organized folder structure (src/components, src/hooks, src/pages)
+          - Modern, responsive layout
+          - Actual content and functioning components (NOT just placeholders or lorem ipsum)
+          - Well-organized code with proper TypeScript types
           
           Return your response as a JSON object with these properties:
-          1. "code": Complete React+TypeScript+Vite application code
-          2. "language": "tsx" 
-          3. "fileName": "App.tsx"
+          {
+            "code": "// Your complete React application code here",
+            "language": "tsx",
+            "fileName": "App.tsx"
+          }
           
-          Make the application as complete and functional as possible, with realistic dummy data if needed.
-          Use modern design principles with proper components, not just placeholder text.
-          Focus on creating an actual working UI with proper HTML structure.
-          Do not include any explanations, just the JSON object.`
+          Do not include any explanations or markdown, just the JSON object with the complete application code.`
         }
       ],
       temperature: 0.5,
-      max_tokens: 8000
+      max_tokens: 4000 // Reduced to avoid very large responses that might cause parsing issues
     };
     
     // Only add model to the request if we have one
     if (model) {
       requestBody.model = model;
+      console.log("Using model for request:", model);
+    } else {
+      console.log("No specific model set, using server default");
     }
     
     // Make request to the LM Studio API
     console.log("Sending request to LM Studio API...");
-    const response = await fetch(`${API_URL}`, {
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -142,77 +163,42 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
 
     const data = await response.json();
     console.log("Received response from API");
-    const messageContent = data.choices?.[0]?.message?.content || '';
     
-    // Enhanced JSON extraction for better reliability
-    let parsedContent;
-    try {
-      // Try parsing directly first
-      parsedContent = JSON.parse(messageContent);
-      console.log("Successfully parsed JSON directly");
-    } catch (e) {
-      console.log("Could not parse as direct JSON, trying to extract JSON from content...");
-      try {
-        // Try to find JSON in a code block
-        const jsonMatch = messageContent.match(/```json\n([\s\S]*?)\n```/) || 
-                          messageContent.match(/```\n([\s\S]*?)\n```/) ||
-                          messageContent.match(/{[\s\S]*?}/);
-        
-        if (jsonMatch) {
-          const extractedJson = jsonMatch[1] || jsonMatch[0];
-          parsedContent = JSON.parse(extractedJson.replace(/^```json\n|^```\n|```$/g, ''));
-          console.log("Extracted JSON from code block");
-        } else {
-          // Look for React code directly if no JSON
-          const reactMatch = messageContent.match(/```tsx\n([\s\S]*?)\n```/) ||
-                            messageContent.match(/```jsx\n([\s\S]*?)\n```/) ||
-                            messageContent.match(/```javascript\n([\s\S]*?)\n```/);
-          
-          if (reactMatch) {
-            const extractedCode = reactMatch[1] || reactMatch[0];
-            parsedContent = {
-              code: extractedCode.replace(/^```tsx\n|^```jsx\n|^```javascript\n|```$/g, ''),
-              language: 'tsx',
-              fileName: 'App.tsx'
-            };
-            console.log("Extracted React code directly from code block");
-          } else if (messageContent.includes('import React') || messageContent.includes('import {')) {
-            // Last resort - use entire message as code if it looks like React
-            parsedContent = {
-              code: messageContent,
-              language: 'tsx',
-              fileName: 'App.tsx'
-            };
-            console.log("Using entire message as React code");
-          } else {
-            // If we still can't find anything useful
-            throw new Error("Could not extract usable code from API response");
-          }
-        }
-      } catch (innerError) {
-        console.error("Error extracting code:", innerError);
-        throw new Error("Failed to parse API response");
-      }
+    if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Invalid API response structure:", data);
+      throw new Error("Invalid API response structure");
     }
     
-    // Handle case where code might be empty or invalid
-    if (!parsedContent.code || parsedContent.code.trim().length < 50) {
-      console.error("Generated code is too short or empty");
-      throw new Error("Generated application code is invalid or too short");
+    const messageContent = data.choices[0].message.content;
+    console.log("Response content length:", messageContent.length);
+    
+    // Use our enhanced JSON extraction function
+    const parsedContent = extractJsonFromText(messageContent);
+    
+    // Validate the extracted content
+    if (!parsedContent.code || typeof parsedContent.code !== 'string') {
+      throw new Error("Generated code is missing or invalid");
+    }
+
+    if (parsedContent.code.trim().length < 50) {
+      console.warn("Generated code is suspiciously short:", parsedContent.code);
+      throw new Error("Generated application code is too short to be valid");
     }
     
     // Set appropriate language based on content
-    if (parsedContent.code.includes('interface ') || 
-        parsedContent.code.includes(': React.') || 
-        parsedContent.code.includes(': FC<')) {
-      parsedContent.language = 'tsx';
-    } else if (parsedContent.code.includes('import React')) {
-      parsedContent.language = 'jsx';
+    if (!parsedContent.language) {
+      if (parsedContent.code.includes('interface ') || 
+          parsedContent.code.includes(': React.') || 
+          parsedContent.code.includes(': FC<')) {
+        parsedContent.language = 'tsx';
+      } else {
+        parsedContent.language = 'jsx';
+      }
     }
     
     return {
       code: parsedContent.code,
-      language: parsedContent.language || 'tsx',
+      language: parsedContent.language,
       fileName: 'App.tsx'  // Always use App.tsx
     };
   } catch (error) {
