@@ -22,7 +22,7 @@ const Index = () => {
       const response = await generateCode({ prompt: enhancedPrompt });
       setGeneratedCode(response.code);
       setCodeLanguage(response.language || "tsx");
-      setFileName(response.fileName || "App.tsx");
+      setFileName("App.tsx"); // Always use App.tsx to avoid the three dots issue
       
       // Notify the user about successful generation
       toast.success("Application generated successfully! Check the preview.");
@@ -30,12 +30,16 @@ const Index = () => {
       console.error("Error generating code:", error);
       
       // Show more specific error messages
-      if (error instanceof TypeError && error.message.includes('NetworkError')) {
-        toast.error("CORS error: Cannot connect to the LLM API. Please ensure your LM Studio is running and configured to allow CORS.");
-      } else if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        toast.error("Connection failed: Is the LLM server running at http://127.0.0.1:1234?");
-      } else if (error instanceof Error && error.message.includes('API error: 400')) {
-        toast.error("API error: Bad request format. Check the console for details.");
+      if (error instanceof Error) {
+        if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+          toast.error("Connection failed: Is the LLM server running at http://127.0.0.1:1234?");
+        } else if (error.message.includes('API error: 400')) {
+          toast.error("API error: Bad request format. Check the console for details.");
+        } else if (error.message.includes('No models available')) {
+          toast.error("No models available from LM Studio. Please ensure at least one model is loaded.");
+        } else {
+          toast.error(`Error: ${error.message}`);
+        }
       } else {
         toast.error("Failed to generate application. Please try a different prompt.");
       }

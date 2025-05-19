@@ -39,18 +39,21 @@ const fetchAvailableModel = async (): Promise<string> => {
   try {
     const response = await fetch(`${API_URL.replace('/chat/completions', '/models')}`);
     if (!response.ok) {
-      console.warn("Could not fetch available models, using fallback model");
-      return "mistral-7b-instruct-v0.3";
+      throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json();
-    // Get the first available model (or use fallback)
-    const model = data.data?.[0]?.id || "mistral-7b-instruct-v0.3";
-    console.log("Detected model:", model);
+    // Get the first available model
+    if (!data.data || data.data.length === 0) {
+      throw new Error("No models available from LM Studio");
+    }
+    
+    const model = data.data[0]?.id;
+    console.log("Using model:", model);
     return model;
   } catch (error) {
     console.error("Error fetching models:", error);
-    return "mistral-7b-instruct-v0.3"; // Fallback
+    throw error; // Let the error propagate so we can show a meaningful error message
   }
 };
 
@@ -72,6 +75,11 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
         model: model,
         messages: [
           {
+            role: "system",
+            content: `You are an expert React developer specializing in creating modern, production-ready web applications.
+            You'll be generating complete code for a ${template} application based on the user's description.`
+          },
+          {
             role: "user",
             content: `Create a modern, production-grade ${template} web application based on this description: "${params.prompt}".
 
@@ -90,7 +98,7 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
             
             Return your response as a JSON object with these properties:
             1. "code": Complete React+TypeScript+Vite application code
-            2. "language": "jsx" or "tsx"
+            2. "language": "tsx" 
             3. "fileName": "App.tsx"
             
             Make the application as complete and functional as possible, with realistic dummy data if needed.
@@ -176,7 +184,7 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     return {
       code: parsedContent.code || messageContent,
       language: parsedContent.language || 'tsx',
-      fileName: parsedContent.fileName || 'App.tsx'
+      fileName: 'App.tsx'  // Always use App.tsx to avoid showing app.tsx with three dots
     };
   } catch (error) {
     console.error('Error generating code:', error);

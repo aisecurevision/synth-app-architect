@@ -20,6 +20,9 @@ const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }
 
   useEffect(() => {
     if (code && !isLoading && viewMode === "preview") {
+      // Reset rendering state when code changes
+      setIsRendering(true);
+      
       // Small delay to simulate rendering
       const timer = setTimeout(() => {
         if (iframeRef.current) {
@@ -50,11 +53,20 @@ const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
               primary: '#9b87f5',
               secondary: '#7E69AB',
+              background: '#f8fafc',
+              foreground: '#1f2937',
+              muted: '#f1f5f9',
+              'muted-foreground': '#64748b',
+              border: '#e2e8f0',
+              input: '#e2e8f0',
+              card: '#ffffff',
+              'card-foreground': '#1f2937',
             }
           }
         },
@@ -111,7 +123,16 @@ const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }
       // Render the App component to the root element
       const rootElement = document.getElementById('root');
       const root = ReactDOM.createRoot(rootElement);
-      root.render(<App />);
+      
+      // Check if App is exported as default or named export
+      const AppComponent = typeof App !== 'undefined' ? App : (typeof default_App !== 'undefined' ? default_App : null);
+      
+      if (AppComponent) {
+        root.render(React.createElement(AppComponent));
+      } else {
+        rootElement.innerHTML = '<div style="color: red; padding: 20px;">Error: No App component found in the generated code.</div>';
+        console.error('No App component found in the generated code');
+      }
     </script>
 </body>
 </html>`;
@@ -126,8 +147,8 @@ const CodePreview = ({ code, language, fileName = "App.tsx", isLoading = false }
       }, 500);
       
       return () => clearTimeout(timer);
-    } else {
-      setIsRendering(true);
+    } else if (viewMode === "code") {
+      setIsRendering(false);
     }
   }, [code, isLoading, viewMode, language]);
 
