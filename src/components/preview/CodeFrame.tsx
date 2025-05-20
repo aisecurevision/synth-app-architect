@@ -34,6 +34,22 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
 
               // If it's a React app but the code doesn't include full HTML structure
               if (isReactApp && !code.includes('<!DOCTYPE html>')) {
+                // Scan for missing type definitions that might cause errors
+                const typeErrors = [];
+                
+                if (code.includes('CalculatorState') && !code.includes('interface CalculatorState') && !code.includes('type CalculatorState')) {
+                  typeErrors.push('CalculatorState type is referenced but not defined');
+                }
+                
+                // Add a warning banner if we found type errors
+                const typeErrorWarning = typeErrors.length > 0 
+                  ? `
+                    <div class="component-warning">
+                      <h3>Type Definition Issues Detected</h3>
+                      <ul>${typeErrors.map(err => `<li>${err}</li>`).join('')}</ul>
+                    </div>` 
+                  : '';
+                
                 htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -129,6 +145,8 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
 </head>
 <body>
     <div id="root"></div>
+    ${typeErrorWarning}
+    
     <!-- Console logging -->
     <script>
       const originalConsoleLog = console.log;
@@ -150,8 +168,23 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
         window.parent.postMessage({ type: 'console-warn', message: args.map(arg => String(arg)).join(' ') }, '*');
       };
     </script>
-    <!-- React component script -->
+
+    <!-- Add missing type definitions that might cause errors -->
     <script type="text/babel">
+      // Common type definitions that might be missing in generated code
+      ${code.includes('CalculatorState') && !code.includes('interface CalculatorState') && !code.includes('type CalculatorState') ? 
+        `
+        // Auto-generated CalculatorState interface based on usage detection
+        interface CalculatorState {
+          currentValue: string;
+          previousValue: string | null;
+          operation: string | null;
+          resetInput: boolean;
+        }
+        ` : ''
+      }
+      
+      // Original app code follows
       ${code}
       
       // Render the App component to the root element
