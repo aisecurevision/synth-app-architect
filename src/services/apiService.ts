@@ -1,6 +1,7 @@
 
 interface GenerateCodeParams {
   prompt: string;
+  apiEndpoint?: string;
 }
 
 interface GenerateCodeResponse {
@@ -9,13 +10,13 @@ interface GenerateCodeResponse {
   fileName?: string;
 }
 
-const API_URL = 'http://127.0.0.1:1234/v1/chat/completions';
-
 // Fetch available models from LM Studio with better error handling
-const fetchAvailableModel = async (): Promise<string> => {
+const fetchAvailableModel = async (apiBaseUrl: string): Promise<string> => {
   try {
-    console.log("Attempting to fetch models from LM Studio...");
-    const response = await fetch(`${API_URL.replace('/chat/completions', '/models')}`);
+    const modelsEndpoint = apiBaseUrl.replace('/chat/completions', '/models');
+    console.log("Attempting to fetch models from:", modelsEndpoint);
+    
+    const response = await fetch(modelsEndpoint);
     
     if (!response.ok) {
       console.warn(`Failed to fetch models: ${response.status} ${response.statusText}`);
@@ -26,8 +27,8 @@ const fetchAvailableModel = async (): Promise<string> => {
     
     // Get the first available model or handle empty response
     if (!data.data || data.data.length === 0) {
-      console.warn("No models available from LM Studio, using default fallback");
-      throw new Error("No models available from LM Studio");
+      console.warn("No models available from LLM server, using default fallback");
+      throw new Error("No models available from LLM server");
     }
     
     const model = data.data[0]?.id;
@@ -92,10 +93,14 @@ const extractJsonFromText = (text: string): any => {
 
 export const generateCode = async (params: GenerateCodeParams): Promise<GenerateCodeResponse> => {
   try {
+    // Use the provided API endpoint or fall back to default
+    const apiEndpoint = params.apiEndpoint || 'http://127.0.0.1:1234/v1/chat/completions';
+    console.log("Using API endpoint:", apiEndpoint);
+    
     // Get available model but with better error handling if not available
     let model;
     try {
-      model = await fetchAvailableModel();
+      model = await fetchAvailableModel(apiEndpoint);
     } catch (modelError) {
       console.warn("Could not fetch model, will try without specifying model:", modelError);
       // We'll proceed without a specific model
@@ -145,9 +150,9 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
       console.log("No specific model set, using server default");
     }
     
-    // Make request to the LM Studio API
-    console.log("Sending request to LM Studio API...");
-    const response = await fetch(API_URL, {
+    // Make request to the LLM API
+    console.log("Sending request to LLM API...");
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

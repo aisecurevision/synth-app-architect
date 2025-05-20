@@ -1,10 +1,13 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Chat from "@/components/Chat";
 import Header from "@/components/Header";
 import CodePreview from "@/components/CodePreview";
+import ApiEndpointConfig from "@/components/ApiEndpointConfig";
 import { toast } from "@/components/ui/sonner";
 import { generateCode } from "@/services/apiService";
+
+const DEFAULT_API_ENDPOINT = "http://127.0.0.1:1234/v1/chat/completions";
 
 const Index = () => {
   const [generatedCode, setGeneratedCode] = useState("");
@@ -12,6 +15,19 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState("App.tsx");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [apiEndpoint, setApiEndpoint] = useState(DEFAULT_API_ENDPOINT);
+
+  // Load saved API endpoint from localStorage on component mount
+  useEffect(() => {
+    const savedEndpoint = localStorage.getItem("llm_api_endpoint");
+    if (savedEndpoint) {
+      setApiEndpoint(savedEndpoint);
+    }
+  }, []);
+
+  const handleApiEndpointChange = (endpoint: string) => {
+    setApiEndpoint(endpoint);
+  };
 
   const handleChatSubmit = async (message: string) => {
     setIsLoading(true);
@@ -22,7 +38,13 @@ const Index = () => {
       const enhancedPrompt = `${message}\n\nPlease create a modern React application with TypeScript, Tailwind CSS, and a clean design. Include ACTUAL CONTENT in the application, not just placeholder text. The application must render properly and have visual elements.`;
       
       console.log("Submitting request to generate code...");
-      const response = await generateCode({ prompt: enhancedPrompt });
+      console.log("Using API endpoint:", apiEndpoint);
+      
+      const response = await generateCode({ 
+        prompt: enhancedPrompt,
+        apiEndpoint: apiEndpoint 
+      });
+      
       setGeneratedCode(response.code);
       setCodeLanguage(response.language || "tsx");
       setFileName("App.tsx"); // Always use App.tsx 
@@ -38,11 +60,11 @@ const Index = () => {
       // Show more specific error messages
       if (error instanceof Error) {
         if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
-          toast.error("Connection failed: Is the LLM server running at http://127.0.0.1:1234?");
+          toast.error(`Connection failed: Is the LLM server running at ${apiEndpoint}?`);
         } else if (error.message.includes('API error: 400')) {
           toast.error("API error: Bad request format. Check the console for details.");
         } else if (error.message.includes('No models available')) {
-          toast.error("No models available from LM Studio. Please ensure you have a model like Qwen2.5-coder-7b-instruct loaded.");
+          toast.error("No models available from LM Studio. Please ensure you have a model loaded.");
         } else if (error.message.includes('Generated application code is invalid')) {
           toast.error("The model generated incomplete code. Try a more specific prompt or check your LM Studio settings.");
         } else if (error.message.includes('Failed to parse API response')) {
@@ -74,8 +96,8 @@ const App = () => {
         <div className="bg-gray-50 p-3 rounded border border-gray-200">
           <h3 className="font-medium text-sm text-gray-700 mb-1">Troubleshooting Tips:</h3>
           <ul className="list-disc pl-5 text-sm text-gray-600 space-y-1">
-            <li>Check if LM Studio is running at http://127.0.0.1:1234</li>
-            <li>Ensure Qwen2.5-coder-7b-instruct model is loaded</li>
+            <li>Check if your LLM server is running at ${apiEndpoint}</li>
+            <li>Ensure you have a model loaded in your LLM server</li>
             <li>Try a shorter, more specific prompt</li>
             <li>Check console logs for more details</li>
           </ul>
@@ -99,6 +121,12 @@ export default App;
       <main className="flex flex-1 overflow-hidden">
         {/* Chat Panel */}
         <div className="w-full lg:w-1/2 h-full border-r border-border">
+          <div className="flex items-center justify-end p-2 border-b border-border">
+            <ApiEndpointConfig 
+              onEndpointChange={handleApiEndpointChange}
+              currentEndpoint={apiEndpoint}
+            />
+          </div>
           <Chat onSubmit={handleChatSubmit} isLoading={isLoading} />
         </div>
         

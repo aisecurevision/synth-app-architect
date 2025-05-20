@@ -32,7 +32,10 @@ const CodePreview = ({
 
       <div className="flex-1 relative bg-white rounded-b-lg overflow-hidden">
         {isLoading && (
-          <LoadingOverlay message="Generating your application..." />
+          <LoadingOverlay 
+            message="Generating your application..." 
+            subMessage="Please wait while we communicate with your LLM model..."
+          />
         )}
         
         {viewMode === "preview" ? (
