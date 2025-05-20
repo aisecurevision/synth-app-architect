@@ -41,58 +41,67 @@ const fetchAvailableModel = async (apiBaseUrl: string): Promise<string> => {
   }
 };
 
-// Enhanced JSON extraction with multiple fallback methods
-const extractJsonFromText = (text: string): any => {
-  console.log("Attempting to extract JSON from response text");
+// Direct extraction of code without JSON parsing 
+const extractCodeFromResponse = (text: string): GenerateCodeResponse => {
+  console.log("Extracting code directly from response");
   
   try {
-    // Method 1: Try direct JSON parsing
-    return JSON.parse(text);
-  } catch (e) {
-    console.log("Direct JSON parsing failed, trying extraction methods");
-    
+    // First attempt: Try direct JSON parsing but with safety features
     try {
-      // Method 2: Find content between ```json and ``` markers
-      const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (jsonBlockMatch && jsonBlockMatch[1]) {
-        const jsonContent = jsonBlockMatch[1].trim();
-        console.log("Found JSON block:", jsonContent.substring(0, 100) + "...");
-        return JSON.parse(jsonContent);
-      }
+      // Remove control characters that might break JSON.parse
+      const cleanedText = text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+      const parsed = JSON.parse(cleanedText);
       
-      // Method 3: Look for { ... } pattern that spans multiple lines
-      const jsonMatch = text.match(/{[\s\S]*}/);
-      if (jsonMatch) {
-        const jsonContent = jsonMatch[0].trim();
-        console.log("Found JSON object:", jsonContent.substring(0, 100) + "...");
-        return JSON.parse(jsonContent);
-      }
-      
-      // Method 4: Extract code from a code block if JSON extraction failed
-      const codeBlockMatch = text.match(/```(?:tsx|jsx|javascript|react|ts)\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch && codeBlockMatch[1]) {
-        console.log("Found code block, using as fallback");
+      if (parsed && typeof parsed === 'object' && parsed.code) {
+        console.log("Successfully parsed JSON directly");
         return {
-          code: codeBlockMatch[1],
-          language: 'tsx',
-          fileName: 'App.tsx'
+          code: parsed.code,
+          language: parsed.language || 'tsx',
+          fileName: parsed.fileName || 'App.tsx'
         };
       }
-      
-      // Method 5: Check if the entire response might be React code
-      if (text.includes('import React') || text.includes('function App') || text.includes('const App')) {
-        console.log("Response appears to be React code, using as fallback");
-        return {
-          code: text,
-          language: text.includes('interface') || text.includes(': React.') ? 'tsx' : 'jsx',
-          fileName: 'App.tsx'
-        };
-      }
+    } catch (jsonError) {
+      console.log("Direct JSON parsing failed, using alternative extraction methods");
+    }
 
-      // Method 6: Last resort - extract any usable code and create a simple component
-      console.log("All extraction methods failed, creating a simple component as fallback");
+    // Method 1: Look for a code block with language marker
+    const codeBlockRegex = /```(?:jsx|tsx|javascript|react|js|ts)?\s*([\s\S]*?)\s*```/;
+    const codeMatch = text.match(codeBlockRegex);
+    
+    if (codeMatch && codeMatch[1]) {
+      console.log("Found code block with language marker");
+      const extractedCode = codeMatch[1].trim();
+      
+      // Determine language based on content
+      const language = 
+        extractedCode.includes('interface ') || 
+        extractedCode.includes(': React.') || 
+        extractedCode.includes('<T>') ? 'tsx' : 'jsx';
+      
       return {
-        code: `
+        code: extractedCode,
+        language,
+        fileName: 'App.tsx'
+      };
+    }
+    
+    // Method 2: If there are React imports but no code blocks, use the whole response
+    if (text.includes('import React') || 
+        text.includes('function App') || 
+        text.includes('const App')) {
+      console.log("Using entire response as code");
+      
+      return {
+        code: text,
+        language: text.includes('interface ') || text.includes(': React.') ? 'tsx' : 'jsx',
+        fileName: 'App.tsx'
+      };
+    }
+    
+    // Method 3: Fallback - create a simple component if no viable code found
+    console.log("No usable code found in response, using fallback component");
+    return {
+      code: `
 import React from 'react';
 
 const App = () => {
@@ -101,7 +110,7 @@ const App = () => {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Simple Application</h1>
         <p className="text-gray-600 mb-4">
-          This is a fallback component. The LLM response couldn't be parsed correctly.
+          The LLM response couldn't be parsed correctly.
         </p>
         <div className="bg-gray-50 rounded p-4 text-sm text-gray-800">
           <p>Try adjusting your prompt to be more specific about what kind of application you want to create.</p>
@@ -112,14 +121,15 @@ const App = () => {
 };
 
 export default App;`,
-        language: 'tsx',
-        fileName: 'App.tsx'
-      };
-    } catch (extractionError) {
-      console.error("All JSON extraction methods failed:", extractionError);
-      // Provide a very simple fallback component instead of throwing
-      return {
-        code: `
+      language: 'tsx',
+      fileName: 'App.tsx'
+    };
+  } catch (extractionError) {
+    console.error("All code extraction methods failed:", extractionError);
+    
+    // Last resort fallback
+    return {
+      code: `
 import React from 'react';
 
 const App = () => {
@@ -128,7 +138,7 @@ const App = () => {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Error Processing Response</h1>
         <p className="text-gray-600 mb-4">
-          There was an error processing the response from the LLM.
+          There was an error extracting code from the LLM response.
         </p>
         <div className="bg-gray-50 rounded p-4 text-sm text-gray-800">
           <p>Try a different prompt or check your LLM service connection.</p>
@@ -139,10 +149,9 @@ const App = () => {
 };
 
 export default App;`,
-        language: 'tsx',
-        fileName: 'App.tsx'
-      };
-    }
+      language: 'tsx',
+      fileName: 'App.tsx'
+    };
   }
 };
 
@@ -175,15 +184,14 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
           4. NEVER use undefined variables like 'CalculatorState' without defining them first.
           5. DO NOT include type imports that don't exist in the codebase.
           6. When creating state management, always define all types and interfaces used.
+          7. DO NOT use @material-ui/core or other libraries that aren't available.
+          8. Use Tailwind CSS for styling.
           
-          FORMAT YOUR RESPONSE AS A JSON OBJECT:
-          {
-            "code": "// Your complete React application code here with ALL necessary types defined",
-            "language": "tsx",
-            "fileName": "App.tsx"
-          }
+          FORMAT YOUR RESPONSE AS CLEAN CODE WITHOUT JSON:
+          Just provide the complete React application code directly, without any JSON wrapper or explanation.
+          Start with imports and end with export default statement.
           
-          DO NOT include any explanations or markdown formatting, ONLY the JSON object.`
+          DO NOT include any explanations or markdown formatting, ONLY the code.`
         },
         {
           role: "user",
@@ -198,15 +206,11 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
           - Actual content and functioning components (NOT just placeholders or lorem ipsum)
           - Well-organized code with proper TypeScript types
           
-          Return your response as a JSON object with these properties:
-          {
-            "code": "// Your complete React application code here",
-            "language": "tsx",
-            "fileName": "App.tsx"
-          }
-          
-          IMPORTANT: Make sure all state types and interfaces are properly defined. Include ALL type definitions needed.
-          Do not include any explanations or markdown, just the JSON object with the complete application code.`
+          IMPORTANT: 
+          - Make sure all state types and interfaces are properly defined.
+          - Include ALL type definitions needed.
+          - DO NOT use external libraries like Material UI, only use React and Tailwind CSS.
+          - Return ONLY the code, not wrapped in JSON or markdown.`
         }
       ],
       temperature: 0.5,
@@ -251,36 +255,21 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     // Log a preview of the content for debugging
     console.log("Response content preview:", messageContent.substring(0, 200) + "...");
     
-    // Use our enhanced JSON extraction function
-    const parsedContent = extractJsonFromText(messageContent);
+    // Use our enhanced direct code extraction function
+    const result = extractCodeFromResponse(messageContent);
     
     // Validate the extracted content
-    if (!parsedContent.code || typeof parsedContent.code !== 'string') {
+    if (!result.code || typeof result.code !== 'string') {
       console.error("Generated code is missing or invalid");
       throw new Error("Generated code is missing or invalid");
     }
 
-    if (parsedContent.code.trim().length < 50) {
-      console.warn("Generated code is suspiciously short:", parsedContent.code);
+    if (result.code.trim().length < 50) {
+      console.warn("Generated code is suspiciously short:", result.code);
       throw new Error("Generated application code is too short to be valid");
     }
     
-    // Set appropriate language based on content
-    if (!parsedContent.language) {
-      if (parsedContent.code.includes('interface ') || 
-          parsedContent.code.includes(': React.') || 
-          parsedContent.code.includes(': FC<')) {
-        parsedContent.language = 'tsx';
-      } else {
-        parsedContent.language = 'jsx';
-      }
-    }
-    
-    return {
-      code: parsedContent.code,
-      language: parsedContent.language,
-      fileName: 'App.tsx'  // Always use App.tsx
-    };
+    return result;
   } catch (error) {
     console.error('Error generating code:', error);
     

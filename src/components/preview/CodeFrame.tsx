@@ -34,21 +34,42 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
 
               // If it's a React app but the code doesn't include full HTML structure
               if (isReactApp && !code.includes('<!DOCTYPE html>')) {
-                // Scan for missing type definitions that might cause errors
-                const typeErrors = [];
+                // Preprocess the code to fix potential issues
+                const processedCode = code
+                  // Define missing types automatically
+                  .replace(/\bimport\s+{\s*Button\s*}\s+from\s+['"]@material-ui\/core['"]/g, 
+                    "// Using Tailwind button instead of Material UI\n")
+                  // Replace Material UI components with basic HTML + Tailwind
+                  .replace(/<Button/g, '<button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"')
+                  .replace(/<\/Button>/g, '</button>')
+                  .replace(/color="primary"/g, 'className="text-blue-500"')
+                  .replace(/variant="contained"/g, 'className="bg-blue-500 text-white px-4 py-2 rounded"');
                 
-                if (code.includes('CalculatorState') && !code.includes('interface CalculatorState') && !code.includes('type CalculatorState')) {
-                  typeErrors.push('CalculatorState type is referenced but not defined');
+                // Auto-generate common TypeScript interfaces based on usage
+                let typeDefinitions = '';
+                
+                // Detect and add missing interfaces
+                if (code.includes('CalculatorState') && 
+                   !code.includes('interface CalculatorState') && 
+                   !code.includes('type CalculatorState')) {
+                  typeDefinitions += `
+                    interface CalculatorState {
+                      currentValue: string;
+                      previousValue: string | null;
+                      operation: string | null;
+                      resetInput: boolean;
+                    }
+                  `;
                 }
                 
-                // Add a warning banner if we found type errors
-                const typeErrorWarning = typeErrors.length > 0 
-                  ? `
-                    <div class="component-warning">
-                      <h3>Type Definition Issues Detected</h3>
-                      <ul>${typeErrors.map(err => `<li>${err}</li>`).join('')}</ul>
-                    </div>` 
-                  : '';
+                // Add interface for common components
+                if (code.includes('AppProps') && 
+                   !code.includes('interface AppProps') && 
+                   !code.includes('type AppProps')) {
+                  typeDefinitions += `
+                    interface AppProps {}
+                  `;
+                }
                 
                 htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -82,48 +103,19 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
             }
           }
         },
-        plugins: [
-          // DaisyUI-like utility classes
-          function({ addComponents }) {
-            addComponents({
-              '.card': {
-                backgroundColor: '#ffffff',
-                borderRadius: '0.5rem',
-                padding: '1.5rem',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              },
-              '.btn': {
-                padding: '0.5rem 1rem',
-                borderRadius: '0.25rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              },
-              '.btn-primary': {
-                backgroundColor: '#9b87f5',
-                color: '#ffffff',
-                '&:hover': {
-                  backgroundColor: '#7E69AB',
-                },
-              },
-            })
-          }
-        ]
+        plugins: [],
       }
     </script>
     <style>
       body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         line-height: 1.6;
-        color: #333;
         margin: 0;
         padding: 0;
       }
       #root {
         width: 100%;
-        height: 100vh;
+        min-height: 100vh;
       }
       .component-error {
         padding: 20px;
@@ -145,157 +137,48 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
 </head>
 <body>
     <div id="root"></div>
-    ${typeErrorWarning}
     
-    <!-- Console logging -->
-    <script>
-      const originalConsoleLog = console.log;
-      const originalConsoleError = console.error;
-      const originalConsoleWarn = console.warn;
-      
-      console.log = (...args) => {
-        originalConsoleLog(...args);
-        window.parent.postMessage({ type: 'console-log', message: args.map(arg => String(arg)).join(' ') }, '*');
-      };
-      
-      console.error = (...args) => {
-        originalConsoleError(...args);
-        window.parent.postMessage({ type: 'console-error', message: args.map(arg => String(arg)).join(' ') }, '*');
-      };
-      
-      console.warn = (...args) => {
-        originalConsoleWarn(...args);
-        window.parent.postMessage({ type: 'console-warn', message: args.map(arg => String(arg)).join(' ') }, '*');
-      };
-    </script>
-
-    <!-- Add missing type definitions that might cause errors -->
     <script type="text/babel">
-      // Common type definitions that might be missing in generated code
-      ${code.includes('CalculatorState') && !code.includes('interface CalculatorState') && !code.includes('type CalculatorState') ? 
-        `
-        // Auto-generated CalculatorState interface based on usage detection
-        interface CalculatorState {
-          currentValue: string;
-          previousValue: string | null;
-          operation: string | null;
-          resetInput: boolean;
-        }
-        ` : ''
-      }
+      // Auto-generated type definitions
+      ${typeDefinitions}
       
-      // Original app code follows
-      ${code}
-      
+      // Process imports to compatibility with in-browser React
+      ${processedCode}
+
       // Render the App component to the root element
-      const rootElement = document.getElementById('root');
-      const root = ReactDOM.createRoot(rootElement);
-      
       try {
-        // Multi-step approach to find the main component
+        const rootElement = document.getElementById('root');
+        const root = ReactDOM.createRoot(rootElement);
         
-        // Step 1: Try direct component references first
-        const possibleComponents = [
-          'App', 
-          'default_App', 
-          'Main', 
-          'DefaultApp', 
-          'Root',
-          'Dashboard',
-          'HomePage'
-        ];
-        
+        // Find the component to render
         let AppComponent = null;
-        for (const name of possibleComponents) {
-          if (typeof window[name] === 'function') {
-            console.log("Found component:", name);
-            AppComponent = window[name];
-            break;
-          }
-        }
         
-        // Step 2: If no direct components, look for default exports
-        if (!AppComponent) {
-          console.log("No direct component found, looking for default exports");
-          
-          // Parse the code for export default statements
-          const exportMatch = /export\\s+default\\s+(\\w+)/.exec(${JSON.stringify(code)});
-          if (exportMatch && exportMatch[1]) {
-            const exportedName = exportMatch[1];
-            console.log("Found default export:", exportedName);
-            if (typeof window[exportedName] === 'function') {
-              AppComponent = window[exportedName];
-            }
-          }
-        }
-        
-        // Step 3: If all else fails, try to find any React components
-        if (!AppComponent) {
-          console.log("No default exports found, scanning for component functions");
-          
+        // Try different ways to find the main component
+        if (typeof App !== 'undefined') {
+          AppComponent = App;
+        } else if (typeof default_App !== 'undefined') {
+          AppComponent = default_App;
+        } else {
+          // Look for any exported component
           for (const key in window) {
             if (typeof window[key] === 'function' && 
-                /^[A-Z]/.test(key) && 
-                window[key].toString().includes('React')) {
-              console.log("Found potential React component:", key);
+                /^[A-Z]/.test(key) && // Component names start with capital letter
+                key !== 'React' && 
+                key !== 'ReactDOM') {
               AppComponent = window[key];
               break;
             }
           }
         }
         
-        // Final rendering attempt
         if (AppComponent) {
-          console.log("Rendering component");
           root.render(React.createElement(AppComponent));
         } else {
-          // Last resort: Create a simple component from the code
-          console.log("No components found, attempting to create one from the code");
-          
-          // Create a wrapper component that will hold our code
-          const DynamicComponent = () => {
-            return (
-              <div className="p-4">
-                <div className="mb-4 component-warning">
-                  <h2 className="text-lg font-bold mb-2">Preview Mode</h2>
-                  <p>Rendering direct React code without a component export</p>
-                </div>
-                <div className="bg-white shadow rounded p-4">
-                  {/* Insert simple UI elements based on code analysis */}
-                  <h1 className="text-2xl font-bold">Application Preview</h1>
-                  <p className="mt-2">This is a preview of your application. Use proper component exports for full functionality.</p>
-                  <div className="mt-4 p-4 bg-gray-100 rounded">
-                    <pre className="text-xs overflow-auto max-h-32">
-                      {${JSON.stringify(code)}.substring(0, 500) + "..."}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            );
-          };
-          
-          root.render(React.createElement(DynamicComponent));
+          rootElement.innerHTML = '<div class="component-error"><h2>Error: No React component found</h2><p>Make sure your code exports a React component.</p></div>';
         }
-      } catch (e) {
-        console.error("Error rendering component:", e);
-        rootElement.innerHTML = '<div class="component-error"><h2>Error Rendering Component</h2><pre>' + e.message + '</pre><p>Check the browser console for more details.</p></div>';
-        
-        // Create a simple fallback UI
-        const ErrorComponent = () => (
-          <div className="p-4">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              <h2 className="font-bold">Error Rendering Component</h2>
-              <p className="mb-2">{e.message}</p>
-              <p className="text-sm">Check the browser console for more details.</p>
-            </div>
-          </div>
-        );
-        
-        try {
-          root.render(React.createElement(ErrorComponent));
-        } catch {
-          // Last resort if React rendering completely fails
-        }
+      } catch (error) {
+        document.getElementById('root').innerHTML = '<div class="component-error"><h2>Error Rendering Component</h2><pre>' + error.message + '</pre></div>';
+        console.error("Error rendering component:", error);
       }
     </script>
 </body>
@@ -339,7 +222,7 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
       
       <iframe 
         ref={iframeRef}
-        className="w-full h-full border-none"
+        className="w-full h-full border-none bg-white"
         sandbox="allow-scripts allow-same-origin allow-forms"
         title="Code Preview"
       />
