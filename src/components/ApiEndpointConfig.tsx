@@ -59,12 +59,12 @@ const ApiEndpointConfig = ({ onEndpointChange, currentEndpoint }: ApiEndpointCon
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
-          variant="outline" 
+          variant="default" 
           size="sm" 
-          className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+          className="bg-ai-purple hover:bg-ai-purple/90 text-white"
         >
           <Settings className="h-4 w-4 mr-2" />
-          Configure LM Studio API
+          LLM API Configuration
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

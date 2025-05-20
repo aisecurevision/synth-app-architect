@@ -1,11 +1,14 @@
 
 import { cn } from "@/lib/utils";
+import ApiEndpointConfig from "@/components/ApiEndpointConfig";
 
 interface HeaderProps {
   className?: string;
+  apiEndpoint: string;
+  onApiEndpointChange: (endpoint: string) => void;
 }
 
-const Header = ({ className }: HeaderProps) => {
+const Header = ({ className, apiEndpoint, onApiEndpointChange }: HeaderProps) => {
   return (
     <header className={cn("flex items-center p-4 border-b border-border", className)}>
       <div className="flex items-center">
@@ -17,8 +20,15 @@ const Header = ({ className }: HeaderProps) => {
           alpha
         </span>
       </div>
-      <div className="ml-auto text-sm text-ai-grayText">
-        AI-powered application builder
+      
+      <div className="ml-auto flex items-center gap-4">
+        <ApiEndpointConfig 
+          onEndpointChange={onApiEndpointChange}
+          currentEndpoint={apiEndpoint}
+        />
+        <div className="text-sm text-ai-grayText hidden md:block">
+          AI-powered application builder
+        </div>
       </div>
     </header>
   );

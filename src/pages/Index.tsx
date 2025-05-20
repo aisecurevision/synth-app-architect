@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import Chat from "@/components/Chat";
 import Header from "@/components/Header";
 import CodePreview from "@/components/CodePreview";
-import ApiEndpointConfig from "@/components/ApiEndpointConfig";
 import { toast } from "@/components/ui/sonner";
 import { generateCode } from "@/services/apiService";
 
@@ -116,17 +115,16 @@ export default App;
 
   return (
     <div className="flex flex-col h-screen bg-ai-darkBg text-white">
-      <Header />
+      <Header 
+        apiEndpoint={apiEndpoint} 
+        onApiEndpointChange={handleApiEndpointChange} 
+      />
       
       <main className="flex flex-1 overflow-hidden">
         {/* Chat Panel */}
         <div className="w-full lg:w-1/2 h-full border-r border-border">
           <div className="flex items-center justify-between p-2 border-b border-border">
             <h2 className="text-sm font-medium text-ai-grayText">Chat with AI</h2>
-            <ApiEndpointConfig 
-              onEndpointChange={handleApiEndpointChange}
-              currentEndpoint={apiEndpoint}
-            />
           </div>
           <Chat onSubmit={handleChatSubmit} isLoading={isLoading} />
         </div>
@@ -146,10 +144,6 @@ export default App;
       <div className="lg:hidden w-full p-4 border-t border-border">
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-lg font-medium text-gradient">Preview</h2>
-          <ApiEndpointConfig 
-            onEndpointChange={handleApiEndpointChange}
-            currentEndpoint={apiEndpoint}
-          />
         </div>
         <div className="h-80">
           <CodePreview 
