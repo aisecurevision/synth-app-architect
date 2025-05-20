@@ -47,7 +47,7 @@ const Index = () => {
       
       setGeneratedCode(response.code);
       setCodeLanguage(response.language || "tsx");
-      setFileName("App.tsx"); // Always use App.tsx 
+      setFileName(response.fileName || "App.tsx");
       
       // Notify the user about successful generation
       toast.success("Application generated successfully! Check the preview.");
@@ -121,7 +121,8 @@ export default App;
       <main className="flex flex-1 overflow-hidden">
         {/* Chat Panel */}
         <div className="w-full lg:w-1/2 h-full border-r border-border">
-          <div className="flex items-center justify-end p-2 border-b border-border">
+          <div className="flex items-center justify-between p-2 border-b border-border">
+            <h2 className="text-sm font-medium text-ai-grayText">Chat with AI</h2>
             <ApiEndpointConfig 
               onEndpointChange={handleApiEndpointChange}
               currentEndpoint={apiEndpoint}
@@ -141,10 +142,16 @@ export default App;
         </div>
       </main>
 
-      {/* Mobile View for Preview */}
+      {/* Mobile View for Preview - Make this more prominent */}
       <div className="lg:hidden w-full p-4 border-t border-border">
-        <h2 className="text-lg font-medium mb-2 text-gradient">Preview</h2>
-        <div className="h-64">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-lg font-medium text-gradient">Preview</h2>
+          <ApiEndpointConfig 
+            onEndpointChange={handleApiEndpointChange}
+            currentEndpoint={apiEndpoint}
+          />
+        </div>
+        <div className="h-80">
           <CodePreview 
             code={generatedCode} 
             language={codeLanguage}

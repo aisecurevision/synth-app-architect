@@ -21,7 +21,7 @@ const CodePreview = ({
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full border border-border rounded-lg overflow-hidden shadow-lg">
       <PreviewHeader 
         fileName={fileName}
         viewMode={viewMode}

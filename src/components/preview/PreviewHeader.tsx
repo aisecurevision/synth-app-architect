@@ -84,7 +84,7 @@ const PreviewHeader = ({
         <Button 
           variant="outline" 
           size="sm" 
-          className="bg-transparent border-white/10 hover:bg-white/5"
+          className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white"
           onClick={handleCopy}
           disabled={!code || isLoading}
         >
@@ -92,9 +92,9 @@ const PreviewHeader = ({
           {copied ? "Copied" : "Copy"}
         </Button>
         <Button 
-          variant="outline" 
+          variant="default" 
           size="sm" 
-          className="bg-transparent border-white/10 hover:bg-white/5"
+          className="bg-ai-purple hover:bg-ai-purple/90"
           onClick={handleDownload}
           disabled={!code || isLoading}
         >
