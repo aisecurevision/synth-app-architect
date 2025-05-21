@@ -4,31 +4,19 @@ interface CodeDisplayProps {
 }
 
 const CodeDisplay = ({ code }: CodeDisplayProps) => {
-  // Function to add syntax highlighting classes
-  const highlightSyntax = (code: string): string => {
-    // Very basic syntax highlighting for demonstration
-    // In a real app, you'd use a library like Prism.js or highlight.js
+  // Direct display without complex syntax highlighting
+  const formatCode = (code: string): string => {
     return code
-      .replace(/import\s+/g, '<span style="color: #c678dd;">import </span>')
-      .replace(/from\s+/g, '<span style="color: #c678dd;">from </span>')
-      .replace(/export\s+/g, '<span style="color: #c678dd;">export </span>')
-      .replace(/const\s+/g, '<span style="color: #c678dd;">const </span>')
-      .replace(/let\s+/g, '<span style="color: #c678dd;">let </span>')
-      .replace(/var\s+/g, '<span style="color: #c678dd;">var </span>')
-      .replace(/function\s+/g, '<span style="color: #c678dd;">function </span>')
-      .replace(/return\s+/g, '<span style="color: #c678dd;">return </span>')
-      .replace(/interface\s+/g, '<span style="color: #c678dd;">interface </span>')
-      .replace(/class\s+/g, '<span style="color: #c678dd;">class </span>')
-      .replace(/\b(useState|useEffect|useRef|useContext|useMemo|useCallback)\b/g, 
-        '<span style="color: #61afef;">$1</span>')
-      .replace(/(["'`][^"'`]*["'`])/g, '<span style="color: #98c379;">$1</span>')
-      .replace(/(\{|\}|\(|\)|\[|\])/g, '<span style="color: #d19a66;">$1</span>');
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>')
+      .replace(/\s{2}/g, '&nbsp;&nbsp;');
   };
 
   return (
     <div className="w-full h-full overflow-auto bg-ai-darkBg text-white p-4">
       <pre className="text-sm">
-        <code dangerouslySetInnerHTML={{ __html: highlightSyntax(code) }} />
+        <code dangerouslySetInnerHTML={{ __html: formatCode(code) }} />
       </pre>
     </div>
   );

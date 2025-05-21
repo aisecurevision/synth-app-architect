@@ -27,160 +27,137 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
           
           if (iframeDoc) {
             try {
-              // For React applications, create a proper HTML structure
-              const isReactApp = language === 'jsx' || language === 'tsx';
-              
+              // Directly render HTML content based on language
               let htmlContent = code;
 
-              // If it's a React app but the code doesn't include full HTML structure
-              if (isReactApp && !code.includes('<!DOCTYPE html>')) {
-                // Preprocess the code to fix potential issues
-                const processedCode = code
-                  // Define missing types automatically
-                  .replace(/\bimport\s+{\s*Button\s*}\s+from\s+['"]@material-ui\/core['"]/g, 
-                    "// Using Tailwind button instead of Material UI\n")
-                  // Replace Material UI components with basic HTML + Tailwind
-                  .replace(/<Button/g, '<button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"')
-                  .replace(/<\/Button>/g, '</button>')
-                  .replace(/color="primary"/g, 'className="text-blue-500"')
-                  .replace(/variant="contained"/g, 'className="bg-blue-500 text-white px-4 py-2 rounded"');
-                
-                // Auto-generate common TypeScript interfaces based on usage
-                let typeDefinitions = '';
-                
-                // Detect and add missing interfaces
-                if (code.includes('CalculatorState') && 
-                   !code.includes('interface CalculatorState') && 
-                   !code.includes('type CalculatorState')) {
-                  typeDefinitions += `
-                    interface CalculatorState {
-                      currentValue: string;
-                      previousValue: string | null;
-                      operation: string | null;
-                      resetInput: boolean;
-                    }
-                  `;
-                }
-                
-                // Add interface for common components
-                if (code.includes('AppProps') && 
-                   !code.includes('interface AppProps') && 
-                   !code.includes('type AppProps')) {
-                  typeDefinitions += `
-                    interface AppProps {}
-                  `;
-                }
-                
+              // If it's Vue.js code
+              if (language === 'vue' || code.includes('<template>')) {
                 htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React App Preview</title>
-    <!-- React dependencies -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>Vue App Preview</title>
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              primary: '#9b87f5',
-              secondary: '#7E69AB',
-              background: '#f8fafc',
-              foreground: '#1f2937',
-              muted: '#f1f5f9',
-              'muted-foreground': '#64748b',
-              border: '#e2e8f0',
-              input: '#e2e8f0',
-              card: '#ffffff',
-              'card-foreground': '#1f2937',
-            }
-          }
-        },
-        plugins: [],
-      }
-    </script>
     <style>
       body {
-        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        line-height: 1.6;
         margin: 0;
-        padding: 0;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        line-height: 1.5;
       }
-      #root {
+      #app {
         width: 100%;
         min-height: 100vh;
-      }
-      .component-error {
-        padding: 20px;
-        color: #e53e3e;
-        background-color: #fff5f5;
-        border: 1px solid #fed7d7;
-        border-radius: 0.375rem;
-        margin: 20px;
-      }
-      .component-warning {
-        padding: 20px;
-        color: #dd6b20;
-        background-color: #fffaf0;
-        border: 1px solid #feebc8;
-        border-radius: 0.375rem;
-        margin: 20px;
       }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="app"></div>
     
-    <script type="text/babel">
-      // Auto-generated type definitions
-      ${typeDefinitions}
-      
-      // Process imports to compatibility with in-browser React
-      ${processedCode}
-
-      // Render the App component to the root element
-      try {
-        const rootElement = document.getElementById('root');
-        const root = ReactDOM.createRoot(rootElement);
-        
-        // Find the component to render
-        let AppComponent = null;
-        
-        // Try different ways to find the main component
-        if (typeof App !== 'undefined') {
-          AppComponent = App;
-        } else if (typeof default_App !== 'undefined') {
-          AppComponent = default_App;
-        } else {
-          // Look for any exported component
-          for (const key in window) {
-            if (typeof window[key] === 'function' && 
-                /^[A-Z]/.test(key) && // Component names start with capital letter
-                key !== 'React' && 
-                key !== 'ReactDOM') {
-              AppComponent = window[key];
-              break;
-            }
+    <script>
+    const appCode = \`${code.replace(/`/g, '\\`')}\`;
+    
+    // Create and mount app
+    try {
+      // For component style code
+      if (appCode.includes('<template>')) {
+        const app = Vue.createApp({
+          template: appCode.match(/<template>([\s\S]*?)<\/template>/)?.[1] || '<div>Failed to extract template</div>',
+          setup() {
+            return {};
           }
-        }
-        
-        if (AppComponent) {
-          root.render(React.createElement(AppComponent));
-        } else {
-          rootElement.innerHTML = '<div class="component-error"><h2>Error: No React component found</h2><p>Make sure your code exports a React component.</p></div>';
-        }
-      } catch (error) {
-        document.getElementById('root').innerHTML = '<div class="component-error"><h2>Error Rendering Component</h2><pre>' + error.message + '</pre></div>';
-        console.error("Error rendering component:", error);
+        });
+        app.mount('#app');
+      } 
+      // For setup API style code
+      else {
+        const app = Vue.createApp(eval('(' + appCode + ')'));
+        app.mount('#app');
       }
+    } catch (error) {
+      document.getElementById('app').innerHTML = 
+        '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;">' +
+        '<h2>Error Rendering Component</h2><pre>' + error.message + '</pre></div>';
+      console.error("Error rendering Vue component:", error);
+    }
     </script>
+</body>
+</html>`;
+              } 
+              // If it's JavaScript/TypeScript code (not React)
+              else if (!code.includes('import React')) {
+                htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Preview</title>
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen"></div>
+    
+    <script>
+    // Direct rendering without parsing
+    try {
+      ${code}
+      
+      // Call initialize function if exists
+      if (typeof init === 'function') {
+        init(document.getElementById('app'));
+      } else if (typeof main === 'function') {
+        main(document.getElementById('app'));
+      }
+    } catch (error) {
+      document.getElementById('app').innerHTML = 
+        '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;">' +
+        '<h2>Error Rendering Application</h2><pre>' + error.message + '</pre></div>';
+      console.error("Error rendering application:", error);
+    }
+    </script>
+</body>
+</html>`;
+              }
+              // Default case (for React code - fallback)
+              else {
+                htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+      }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+        <h2 class="text-lg font-semibold text-red-600 mb-2">Preview Unavailable</h2>
+        <p class="text-gray-700">
+          The generated code appears to be React-based, but the preview is configured for Vue.js applications.
+        </p>
+        <p class="text-sm mt-3 text-gray-500">
+          Try asking for a Vue.js application in your prompt.
+        </p>
+      </div>
+    </div>
 </body>
 </html>`;
               }
