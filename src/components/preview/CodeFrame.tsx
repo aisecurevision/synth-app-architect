@@ -27,7 +27,7 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
           
           if (iframeDoc) {
             try {
-              // Create HTML content for React preview
+              // Create HTML content for direct React preview without module exports
               const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,36 +47,17 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       line-height: 1.5;
     }
-    #app {
+    #root {
       width: 100%;
       min-height: 100vh;
     }
   </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="root"></div>
   
   <script type="text/babel">
     ${code}
-    
-    // Function to check if App is a function or an object/component
-    const renderApp = () => {
-      if (typeof App === 'function') {
-        ReactDOM.createRoot(document.getElementById('app')).render(<App />);
-      } else if (App && typeof App === 'object' && App.default && typeof App.default === 'function') {
-        // For ES modules format
-        ReactDOM.createRoot(document.getElementById('app')).render(<App.default />);
-      } else {
-        document.getElementById('app').innerHTML = '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;"><h2>Error: Could not render App component</h2><p>The code does not export a valid React component.</p></div>';
-      }
-    };
-    
-    try {
-      renderApp();
-    } catch (error) {
-      document.getElementById('app').innerHTML = '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;"><h2>Error Rendering Component</h2><pre>' + error.message + '</pre></div>';
-      console.error("Error rendering React component:", error);
-    }
   </script>
 </body>
 </html>`;

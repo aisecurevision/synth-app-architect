@@ -34,7 +34,7 @@ const CodePreview = ({
         {isLoading && (
           <LoadingOverlay 
             message="Generating your application..." 
-            subMessage="Please wait while we communicate with your LLM model..."
+            subMessage="Creating React component for direct browser preview..."
           />
         )}
         

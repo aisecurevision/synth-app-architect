@@ -48,8 +48,7 @@ const extractCode = (text: string): string => {
   }
   
   // If it contains import React, it's probably React code
-  if (text.includes('import React') || 
-      text.includes('function App') || 
+  if (text.includes('function App') || 
       text.includes('const App')) {
     return text;
   }
@@ -61,8 +60,6 @@ const extractCode = (text: string): string => {
   
   // Basic fallback if the text doesn't appear to be code
   return `
-import React from 'react';
-
 function App() {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -74,7 +71,25 @@ function App() {
   );
 }
 
-export default App;`;
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);`;
+}
+
+// Process code to make it ready for browser execution
+const formatCodeForBrowserExecution = (code: string): string => {
+  // Remove import statements as they're not needed
+  code = code.replace(/import\s+.*from\s+['"].*['"]\s*;?\s*\n?/g, '');
+  
+  // Remove export default statements as they're not needed
+  code = code.replace(/export\s+default\s+\w+\s*;?\s*\n?/g, '');
+  
+  // If no render call exists, add one for App component
+  if (!code.includes('ReactDOM.createRoot') && !code.includes('ReactDOM.render')) {
+    code += `\n\nconst root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);`;
+  }
+  
+  return code;
 }
 
 // Generate code with direct response handling
@@ -98,36 +113,36 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
           You'll be generating complete code for a responsive application based on the user's description.
           
           IMPORTANT GUIDELINES:
-          1. Return fully functional React code with actual UI components and content, not just placeholder text.
-          2. The code must render properly when evaluated in a browser environment.
-          3. ALWAYS use proper JavaScript or TypeScript if requested.
-          4. DO NOT return the code in a JSON format. Just return the raw code directly.
-          5. Just provide the raw code directly.
-          6. ONLY use React for the frontend.
-          7. Use Tailwind CSS for styling.
+          1. Write React code that can run directly in the browser with Babel.
+          2. DO NOT include any import or export statements.
+          3. DO NOT use modules - the code must work directly in a browser environment.
+          4. Define a component named App and render it with ReactDOM.createRoot().
+          5. Use proper JavaScript or TypeScript for the component.
+          6. Always end your code with: const root = ReactDOM.createRoot(document.getElementById('root')); root.render(<App />);
+          7. Use Tailwind CSS for styling (available in the browser).
+          8. Return fully functional React code with actual UI components and content, not placeholders.
+          9. The code must render in a browser without any build step.
           
           FORMAT YOUR RESPONSE AS CLEAN CODE WITHOUT ANY WRAPPERS:
-          Just provide the complete React application code directly.
-          Start with imports and setup code.`
+          Just provide the complete React code that can run directly in the browser.`
         },
         {
           role: "user",
-          content: `Create a modern, production-grade web application based on this description: "${params.prompt}".
+          content: `Create a modern, responsive React application that can run directly in the browser based on this description: "${params.prompt}".
 
-          Tech Stack Requirements:
-          - Frontend: React (with or without TypeScript)
-          - Styling: Tailwind CSS
-          
-          The application should include:
-          - Modern, responsive layout
-          - Actual content and functioning components (NOT just placeholders)
-          - Well-organized code
+          Technical Requirements:
+          - NO import statements
+          - NO export statements
+          - Define a component named App
+          - End with ReactDOM.createRoot and render call
+          - Use Tailwind CSS for styling (it's available)
+          - Implement actual functionality, not just placeholders
+          - DO NOT use any external libraries that would need to be imported
           
           IMPORTANT: 
           - Return ONLY the code, not wrapped in markdown or anything else.
-          - Start with import statements.
-          - End with export default.
-          - Use functional components.`
+          - Must run directly in browser with Babel transform.
+          - Include the root.render(<App />) line at the end.`
         }
       ],
       temperature: 0.5,
@@ -169,13 +184,16 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     console.log("Response content preview:", messageContent.substring(0, 200) + '...');
     
     // Skip parsing, use direct content extraction
-    const extractedCode = extractCode(messageContent);
+    let extractedCode = extractCode(messageContent);
+    
+    // Format the code for direct browser execution
+    extractedCode = formatCodeForBrowserExecution(extractedCode);
     
     // Determine language and filename based on content
     let language = 'jsx';
     let fileName = 'App.jsx';
     
-    if (extractedCode.includes('tsx') || extractedCode.includes('<React.FC') || extractedCode.includes(': React.FC')) {
+    if (extractedCode.includes(':') && extractedCode.includes('React.FC')) {
       language = 'tsx';
       fileName = 'App.tsx';
     }
@@ -191,9 +209,7 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     // Return a simple fallback component on error
     return {
       code: `
-import React from 'react';
-
-const App = () => {
+function App() {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
@@ -213,9 +229,10 @@ const App = () => {
       </div>
     </div>
   );
-};
+}
 
-export default App;`,
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);`,
       language: 'jsx',
       fileName: 'App.jsx'
     };

@@ -17,7 +17,7 @@ const LoadingOverlay = ({ message, subMessage }: LoadingOverlayProps) => {
         </p>
         <div className="mt-4 w-full bg-black/30 rounded p-3">
           <p className="text-xs text-ai-grayText leading-relaxed">
-            The application will generate React code for a more reliable preview experience. The preview will show the generated application directly.
+            The application will generate React code that renders directly in the browser without build steps. The preview will show your React application instantly.
           </p>
         </div>
       </div>
