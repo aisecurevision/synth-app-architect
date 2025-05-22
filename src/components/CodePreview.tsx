@@ -15,7 +15,7 @@ interface CodePreviewProps {
 const CodePreview = ({ 
   code, 
   language, 
-  fileName = "App.tsx", 
+  fileName = "App.jsx", 
   isLoading = false 
 }: CodePreviewProps) => {
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");

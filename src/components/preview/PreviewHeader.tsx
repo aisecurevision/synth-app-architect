@@ -13,7 +13,6 @@ interface PreviewHeaderProps {
 }
 
 const PreviewHeader = ({ 
-  fileName, 
   viewMode, 
   setViewMode, 
   code, 
@@ -40,7 +39,7 @@ const PreviewHeader = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = fileName;
+      a.download = "App.jsx";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -58,7 +57,6 @@ const PreviewHeader = ({
         <div className="h-3 w-3 rounded-full bg-red-500 opacity-75 mr-2"></div>
         <div className="h-3 w-3 rounded-full bg-yellow-500 opacity-75 mr-2"></div>
         <div className="h-3 w-3 rounded-full bg-green-500 opacity-75 mr-2"></div>
-        <span className="text-xs text-ai-grayText ml-2">{fileName}</span>
       </div>
       <div className="flex gap-2">
         <div className="bg-ai-darkBg rounded-md overflow-hidden flex">

@@ -4,7 +4,7 @@ interface CodeDisplayProps {
 }
 
 const CodeDisplay = ({ code }: CodeDisplayProps) => {
-  // Direct display without complex syntax highlighting
+  // Improved formatting with better spacing and readability
   const formatCode = (code: string): string => {
     return code
       .replace(/</g, '&lt;')
@@ -15,7 +15,7 @@ const CodeDisplay = ({ code }: CodeDisplayProps) => {
 
   return (
     <div className="w-full h-full overflow-auto bg-ai-darkBg text-white p-4">
-      <pre className="text-sm">
+      <pre className="text-sm font-mono">
         <code dangerouslySetInnerHTML={{ __html: formatCode(code) }} />
       </pre>
     </div>

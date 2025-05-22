@@ -17,7 +17,7 @@ const LoadingOverlay = ({ message, subMessage }: LoadingOverlayProps) => {
         </p>
         <div className="mt-4 w-full bg-black/30 rounded p-3">
           <p className="text-xs text-ai-grayText leading-relaxed">
-            The application will generate Vue.js code for a more reliable preview experience. No parsing operations will be used, ensuring better stability.
+            The application will generate React code for a more reliable preview experience. The preview will show the generated application directly.
           </p>
         </div>
       </div>

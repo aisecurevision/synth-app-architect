@@ -27,140 +27,59 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
           
           if (iframeDoc) {
             try {
-              // Directly render HTML content based on language
-              let htmlContent = code;
-
-              // If it's Vue.js code
-              if (language === 'vue' || code.includes('<template>')) {
-                htmlContent = `<!DOCTYPE html>
+              // Create HTML content for React preview
+              const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vue App Preview</title>
-    <!-- Vue.js 3 -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- TailwindCSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        margin: 0;
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        line-height: 1.5;
-      }
-      #app {
-        width: 100%;
-        min-height: 100vh;
-      }
-    </style>
-</head>
-<body>
-    <div id="app"></div>
-    
-    <script>
-    const appCode = \`${code.replace(/`/g, '\\`')}\`;
-    
-    // Create and mount app
-    try {
-      // For component style code
-      if (appCode.includes('<template>')) {
-        const app = Vue.createApp({
-          template: appCode.match(/<template>([\s\S]*?)<\/template>/)?.[1] || '<div>Failed to extract template</div>',
-          setup() {
-            return {};
-          }
-        });
-        app.mount('#app');
-      } 
-      // For setup API style code
-      else {
-        const app = Vue.createApp(eval('(' + appCode + ')'));
-        app.mount('#app');
-      }
-    } catch (error) {
-      document.getElementById('app').innerHTML = 
-        '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;">' +
-        '<h2>Error Rendering Component</h2><pre>' + error.message + '</pre></div>';
-      console.error("Error rendering Vue component:", error);
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>React App Preview</title>
+  <!-- React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
     }
-    </script>
-</body>
-</html>`;
-              } 
-              // If it's JavaScript/TypeScript code (not React)
-              else if (!code.includes('import React')) {
-                htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Preview</title>
-    <!-- TailwindCSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        line-height: 1.5;
-        margin: 0;
-        padding: 0;
-      }
-    </style>
-</head>
-<body>
-    <div id="app" class="min-h-screen"></div>
-    
-    <script>
-    // Direct rendering without parsing
-    try {
-      ${code}
-      
-      // Call initialize function if exists
-      if (typeof init === 'function') {
-        init(document.getElementById('app'));
-      } else if (typeof main === 'function') {
-        main(document.getElementById('app'));
-      }
-    } catch (error) {
-      document.getElementById('app').innerHTML = 
-        '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;">' +
-        '<h2>Error Rendering Application</h2><pre>' + error.message + '</pre></div>';
-      console.error("Error rendering application:", error);
+    #app {
+      width: 100%;
+      min-height: 100vh;
     }
-    </script>
-</body>
-</html>`;
-              }
-              // Default case (for React code - fallback)
-              else {
-                htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>App Preview</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        margin: 0;
-        font-family: 'Inter', system-ui, sans-serif;
-      }
-    </style>
+  </style>
 </head>
 <body>
-    <div class="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-        <h2 class="text-lg font-semibold text-red-600 mb-2">Preview Unavailable</h2>
-        <p class="text-gray-700">
-          The generated code appears to be React-based, but the preview is configured for Vue.js applications.
-        </p>
-        <p class="text-sm mt-3 text-gray-500">
-          Try asking for a Vue.js application in your prompt.
-        </p>
-      </div>
-    </div>
+  <div id="app"></div>
+  
+  <script type="text/babel">
+    ${code}
+    
+    // Function to check if App is a function or an object/component
+    const renderApp = () => {
+      if (typeof App === 'function') {
+        ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+      } else if (App && typeof App === 'object' && App.default && typeof App.default === 'function') {
+        // For ES modules format
+        ReactDOM.createRoot(document.getElementById('app')).render(<App.default />);
+      } else {
+        document.getElementById('app').innerHTML = '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;"><h2>Error: Could not render App component</h2><p>The code does not export a valid React component.</p></div>';
+      }
+    };
+    
+    try {
+      renderApp();
+    } catch (error) {
+      document.getElementById('app').innerHTML = '<div style="color: #e53e3e; background: #fff5f5; border: 1px solid #fed7d7; border-radius: 0.375rem; padding: 20px; margin: 20px;"><h2>Error Rendering Component</h2><pre>' + error.message + '</pre></div>';
+      console.error("Error rendering React component:", error);
+    }
+  </script>
 </body>
 </html>`;
-              }
 
               iframeDoc.open();
               iframeDoc.write(htmlContent);

@@ -41,33 +41,40 @@ const fetchAvailableModel = async (apiBaseUrl: string): Promise<string> => {
 
 // Direct code extraction function without complex parsing
 const extractCode = (text: string): string => {
-  // Simple extraction without JSON parsing
-  if (text.includes('import React') || text.includes('function App') || text.includes('const App')) {
-    // If it looks like code, return it directly
+  // Look for code blocks
+  const codeBlockMatch = text.match(/```(?:jsx?|tsx?|javascript|typescript)?\s*([\s\S]+?)```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    return codeBlockMatch[1].trim();
+  }
+  
+  // If it contains import React, it's probably React code
+  if (text.includes('import React') || 
+      text.includes('function App') || 
+      text.includes('const App')) {
+    return text;
+  }
+  
+  // If there are HTML-like tags, it's probably JSX
+  if (/<\/?[a-z][\s\S]*>/i.test(text)) {
     return text;
   }
   
   // Basic fallback if the text doesn't appear to be code
   return `
-import { createApp, ref } from 'vue';
+import React from 'react';
 
-export default {
-  setup() {
-    const message = ref('Application generated successfully');
-    
-    return {
-      message
-    }
-  },
-  template: \`
-    <div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-        <h1 class="text-2xl font-bold text-gray-800 mb-4">Simple Application</h1>
-        <p class="text-gray-600 mb-4">{{ message }}</p>
+function App() {
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Simple React Application</h1>
+        <p className="text-gray-600 mb-4">Application generated successfully</p>
       </div>
     </div>
-  \`
-}`;
+  );
+}
+
+export default App;`;
 }
 
 // Generate code with direct response handling
@@ -87,20 +94,20 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
       messages: [
         {
           role: "system",
-          content: `You are an expert Vue.js developer specializing in creating modern, production-ready Vue applications.
+          content: `You are an expert React developer specializing in creating modern, production-ready React applications.
           You'll be generating complete code for a responsive application based on the user's description.
           
           IMPORTANT GUIDELINES:
-          1. Return fully functional Vue.js code with actual UI components and content, not just placeholder text.
+          1. Return fully functional React code with actual UI components and content, not just placeholder text.
           2. The code must render properly when evaluated in a browser environment.
-          3. ALWAYS use proper TypeScript types if applicable.
-          4. DO NOT return the code in a JSON format, markdown, or wrapped in code blocks.
+          3. ALWAYS use proper JavaScript or TypeScript if requested.
+          4. DO NOT return the code in a JSON format. Just return the raw code directly.
           5. Just provide the raw code directly.
-          6. DO NOT use React, Angular, or any other framework, ONLY Vue.js.
+          6. ONLY use React for the frontend.
           7. Use Tailwind CSS for styling.
           
           FORMAT YOUR RESPONSE AS CLEAN CODE WITHOUT ANY WRAPPERS:
-          Just provide the complete Vue.js application code directly.
+          Just provide the complete React application code directly.
           Start with imports and setup code.`
         },
         {
@@ -108,7 +115,7 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
           content: `Create a modern, production-grade web application based on this description: "${params.prompt}".
 
           Tech Stack Requirements:
-          - Frontend: Vue.js (version 3) with TypeScript
+          - Frontend: React (with or without TypeScript)
           - Styling: Tailwind CSS
           
           The application should include:
@@ -117,7 +124,10 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
           - Well-organized code
           
           IMPORTANT: 
-          - Return ONLY the code, not wrapped in JSON or markdown.`
+          - Return ONLY the code, not wrapped in markdown or anything else.
+          - Start with import statements.
+          - End with export default.
+          - Use functional components.`
         }
       ],
       temperature: 0.5,
@@ -156,13 +166,19 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     
     const messageContent = data.choices[0].message.content;
     console.log("Response content length:", messageContent.length);
+    console.log("Response content preview:", messageContent.substring(0, 200) + '...');
     
     // Skip parsing, use direct content extraction
     const extractedCode = extractCode(messageContent);
     
-    // Determine language based on content
-    const language = extractedCode.includes('<script lang="ts">') ? 'ts' : 'js';
-    const fileName = language === 'ts' ? 'App.vue' : 'App.vue';
+    // Determine language and filename based on content
+    let language = 'jsx';
+    let fileName = 'App.jsx';
+    
+    if (extractedCode.includes('tsx') || extractedCode.includes('<React.FC') || extractedCode.includes(': React.FC')) {
+      language = 'tsx';
+      fileName = 'App.tsx';
+    }
     
     return {
       code: extractedCode,
@@ -175,27 +191,33 @@ export const generateCode = async (params: GenerateCodeParams): Promise<Generate
     // Return a simple fallback component on error
     return {
       code: `
-<template>
-  <div class="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-    <div class="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-      <h1 class="text-2xl font-bold text-gray-800 mb-4">Error Generating Application</h1>
-      <p class="text-gray-600 mb-4">
-        ${error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred'}
-      </p>
-      <div class="bg-gray-50 rounded p-4 text-sm text-gray-800">
-        <p class="font-medium mb-2">Troubleshooting tips:</p>
-        <ul class="list-disc pl-5 space-y-1">
-          <li>Check your LLM server connection</li>
-          <li>Verify your API endpoint configuration</li>
-          <li>Try a simpler or more specific prompt</li>
-          <li>Ensure your LLM model is properly loaded</li>
-        </ul>
+import React from 'react';
+
+const App = () => {
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Error Generating Application</h1>
+        <p className="text-gray-600 mb-4">
+          ${error instanceof Error ? `Error: ${error.message}` : 'An unknown error occurred'}
+        </p>
+        <div className="bg-gray-50 rounded p-4 text-sm text-gray-800">
+          <p className="font-medium mb-2">Troubleshooting tips:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Check your LLM server connection</li>
+            <li>Verify your API endpoint configuration</li>
+            <li>Try a simpler or more specific prompt</li>
+            <li>Ensure your LLM model is properly loaded</li>
+          </ul>
+        </div>
       </div>
     </div>
-  </div>
-</template>`,
-      language: 'vue',
-      fileName: 'App.vue'
+  );
+};
+
+export default App;`,
+      language: 'jsx',
+      fileName: 'App.jsx'
     };
   }
 };

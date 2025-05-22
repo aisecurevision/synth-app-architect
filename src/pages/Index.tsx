@@ -10,9 +10,9 @@ const DEFAULT_API_ENDPOINT = "http://127.0.0.1:1234/v1/chat/completions";
 
 const Index = () => {
   const [generatedCode, setGeneratedCode] = useState("");
-  const [codeLanguage, setCodeLanguage] = useState("tsx");
+  const [codeLanguage, setCodeLanguage] = useState("jsx");
   const [isLoading, setIsLoading] = useState(false);
-  const [fileName, setFileName] = useState("App.tsx");
+  const [fileName, setFileName] = useState("App.jsx");
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [apiEndpoint, setApiEndpoint] = useState(DEFAULT_API_ENDPOINT);
 
@@ -34,7 +34,7 @@ const Index = () => {
 
     try {
       // Add a template hint to help guide the LLM
-      const enhancedPrompt = `${message}\n\nPlease create a modern React application with TypeScript, Tailwind CSS, and a clean design. Include ACTUAL CONTENT in the application, not just placeholder text. The application must render properly and have visual elements.`;
+      const enhancedPrompt = `${message}\n\nPlease create a modern React application with a clean design. Include ACTUAL CONTENT in the application, not just placeholder text. The application must render properly and have visual elements.`;
       
       console.log("Submitting request to generate code...");
       console.log("Using API endpoint:", apiEndpoint);
@@ -45,8 +45,8 @@ const Index = () => {
       });
       
       setGeneratedCode(response.code);
-      setCodeLanguage(response.language || "tsx");
-      setFileName(response.fileName || "App.tsx");
+      setCodeLanguage(response.language || "jsx");
+      setFileName(response.fileName || "App.jsx");
       
       // Notify the user about successful generation
       toast.success("Application generated successfully! Check the preview.");
