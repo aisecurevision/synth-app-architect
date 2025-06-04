@@ -15,11 +15,9 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
 
   useEffect(() => {
     if (code && !isLoading) {
-      // Reset rendering state when code changes
       setIsRendering(true);
       setRenderError(null);
       
-      // Small delay to simulate rendering
       const timer = setTimeout(() => {
         if (iframeRef.current) {
           const iframeDoc = iframeRef.current.contentDocument || 
@@ -27,19 +25,16 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
           
           if (iframeDoc) {
             try {
-              // Create HTML content for direct React preview without module exports
+              // Create HTML content for direct React preview
               const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>React App Preview</title>
-  <!-- React -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- TailwindCSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -59,6 +54,18 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
   <script type="text/babel">
     ${code}
   </script>
+  
+  <script>
+    // Error handling for the iframe
+    window.addEventListener('error', function(e) {
+      console.error('React render error:', e.error);
+      document.getElementById('root').innerHTML = 
+        '<div style="padding: 20px; text-align: center; color: #dc2626;">' +
+        '<h3>Render Error</h3>' +
+        '<p>' + e.error.message + '</p>' +
+        '</div>';
+    });
+  </script>
 </body>
 </html>`;
 
@@ -73,26 +80,26 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
             }
           }
         }
-      }, 500);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
-  }, [code, isLoading, language]);
+  }, [code, isLoading]);
 
   return (
     <div className="w-full h-full relative">
       {isRendering && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ai-darkBg bg-opacity-90 z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 z-10">
           <LoadingIndicator className="mb-4" />
-          <p className="text-sm text-ai-grayText">Rendering preview...</p>
+          <p className="text-sm text-gray-600">Rendering React preview...</p>
         </div>
       )}
       
       {renderError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-ai-darkBg bg-opacity-90 z-10">
-          <div className="bg-red-900/50 p-4 rounded-md max-w-md">
-            <h3 className="text-red-300 font-medium mb-2">Error Rendering Preview</h3>
-            <p className="text-sm text-ai-grayText">{renderError}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50 z-10">
+          <div className="bg-red-100 p-4 rounded-md max-w-md border border-red-200">
+            <h3 className="text-red-800 font-medium mb-2">Preview Error</h3>
+            <p className="text-sm text-red-700">{renderError}</p>
           </div>
         </div>
       )}
@@ -101,7 +108,7 @@ const CodeFrame = ({ code, language, isLoading }: CodeFrameProps) => {
         ref={iframeRef}
         className="w-full h-full border-none bg-white"
         sandbox="allow-scripts allow-same-origin allow-forms"
-        title="Code Preview"
+        title="React App Preview"
       />
     </div>
   );

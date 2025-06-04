@@ -9,7 +9,105 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      audio_conversions: {
+        Row: {
+          character_count: number
+          created_at: string
+          file_url: string | null
+          id: string
+          text_content: string
+          user_id: string
+          voice_id: string
+        }
+        Insert: {
+          character_count: number
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          text_content: string
+          user_id: string
+          voice_id: string
+        }
+        Update: {
+          character_count?: number
+          created_at?: string
+          file_url?: string | null
+          id?: string
+          text_content?: string
+          user_id?: string
+          voice_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          billing_period_end: string | null
+          billing_period_start: string | null
+          characters_limit: number
+          characters_used: number
+          created_at: string
+          id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          status: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          characters_limit?: number
+          characters_used?: number
+          created_at?: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          status?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          characters_limit?: number
+          characters_used?: number
+          created_at?: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          status?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +116,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_plan: "free" | "basic" | "pro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +231,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_plan: ["free", "basic", "pro"],
+    },
   },
 } as const
